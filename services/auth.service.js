@@ -1,8 +1,12 @@
 import User from "../models/User.model.js";
 import { hashPassword, comparePassword } from "../utils/hash.js";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
+import { getClientInfo } from "../utils/clientInfo.js";
+import { getLocationFromIP } from "../utils/clientInfo.js";
+import AuditLog from "../models/AuditLog.model.js";
 
-export const registerUser = async (userData) => {
+
+export const registerUser = async (userData, req) => {
     try {
         let { name, username, email, password } = userData;
         name = name?.trim();
@@ -62,6 +66,21 @@ export const registerUser = async (userData) => {
             throw error;
         }
 
+        if (req) {
+            const { ipAddress, userAgent } = getClientInfo(req);
+            
+            await AuditLog.create({
+                userId: user._id,
+                action: 'REGISTER',
+                ipAddress,
+                userAgent,
+                details: {
+                    email: user.email,
+                    username: user.username
+                }
+            }).catch(err => console.error('Audit log error:', err));
+        }
+
         const userObject = user.toObject();
         const { password: _, ...userWithoutPassword } = userObject;
 
@@ -72,7 +91,7 @@ export const registerUser = async (userData) => {
     }
 };
 
-export const loginUser = async (userData) => {
+export const loginUser = async (userData, req) => {
     try {
         let { email, password } = userData;
 
@@ -94,6 +113,17 @@ export const loginUser = async (userData) => {
         const user = await User.findOne({ email }).select("+password");
         
         if (!user) {
+            if (req) {
+                const { ipAddress, userAgent } = getClientInfo(req);
+                await AuditLog.create({
+                    userId: null,
+                    action: 'LOGIN_FAILED',
+                    ipAddress,
+                    userAgent,
+                    details: { email, reason: 'User not found' }
+                }).catch(err => console.error('Audit log error:', err));
+            }
+            
             const error = new Error("Invalid credentials");
             error.statusCode = 401;
             throw error;
@@ -102,9 +132,30 @@ export const loginUser = async (userData) => {
         const isPasswordValid = await comparePassword(password, user.password);
         
         if (!isPasswordValid) {
+            await User.findByIdAndUpdate(user._id, {
+                $inc: { loginAttempts: 1 }
+            });
+            if (req) {
+                const { ipAddress, userAgent } = getClientInfo(req);
+                await AuditLog.create({
+                    userId: user._id,
+                    action: 'LOGIN_FAILED',
+                    ipAddress,
+                    userAgent,
+                    details: { email, reason: 'Invalid password' }
+                }).catch(err => console.error('Audit log error:', err));
+            }
+            
             const error = new Error("Invalid credentials");
             error.statusCode = 401;
             throw error;
+        }
+
+        if (user.loginAttempts > 0) {
+            await User.findByIdAndUpdate(user._id, {
+                loginAttempts: 0,
+                lockUntil: null
+            });
         }
         
         const accessToken = generateAccessToken({ 
@@ -116,6 +167,28 @@ export const loginUser = async (userData) => {
         const refreshToken = generateRefreshToken({ 
             userId: user._id 
         });
+
+        if (req) {
+            const { ipAddress, device } = getClientInfo(req);
+            const RefreshToken = (await import("../models/RefreshToken.model.js")).default;
+            
+            await RefreshToken.create({
+                userId: user._id,
+                token: refreshToken,
+                ipAddress,
+                device,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+            }).catch(err => console.error('RefreshToken save error:', err));
+
+            const { userAgent } = getClientInfo(req);
+            await AuditLog.create({
+                userId: user._id,
+                action: 'LOGIN_SUCCESS',
+                ipAddress,
+                userAgent,
+                details: { email: user.email }
+            }).catch(err => console.error('Audit log error:', err));
+        }
         
         const userObject = user.toObject();
         const { password: _, ...userWithoutPassword } = userObject;

@@ -5,7 +5,8 @@ export const registerUserController = async (req, res) => {
     try {
         const { name, username, email, password } = req.body;
 
-        const user = await registerUser({ name, username, email, password });
+        // Pass req object for client info extraction
+        const user = await registerUser({ name, username, email, password }, req);
         
         res.status(201).json({ 
             success: true, 
@@ -26,7 +27,8 @@ export const loginUserController = async (req, res) => {
     try {
         const { email, password } = req.body;
         
-        const result = await loginUser({ email, password });
+        // Pass req object for client info extraction
+        const result = await loginUser({ email, password }, req);
         
         res.status(200).json({
             success: true,

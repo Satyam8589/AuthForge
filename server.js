@@ -10,6 +10,8 @@ dotenv.config();
 
 const app = express();
 
+app.set('trust proxy', true);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
@@ -17,7 +19,6 @@ app.use(helmet());
 app.use(rateLimit());
 
 app.use("/api/auth", authRoutes);
-
 
 app.get("/api/health", (req, res) => {
     const HealthCheck = {
@@ -45,7 +46,7 @@ app.get("/api/health", (req, res) => {
 const start = async () => {
     try {
         await connectDB();
-        app.listen(process.env.PORT, () => {
+        app.listen(process.env.PORT || 2000, () => {
             console.log(`Server is running on port http://localhost:${process.env.PORT}`);
         });
     } catch (error) {
