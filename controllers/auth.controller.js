@@ -1,4 +1,14 @@
-import { registerUser, loginUser, logoutUser, logoutAllDevices, refreshUserTokens, auditLogService, registerUserByGoogle, loginUserByGoogle } from "../services/auth.service.js";
+import { 
+    registerUser, 
+    loginUser, 
+    logoutUser, 
+    logoutAllDevices, 
+    refreshUserTokens, 
+    auditLogService, 
+    registerUserByGoogle, 
+    loginUserByGoogle
+} from "../services/auth.service.js";
+import { getOAuthCompletionHTML } from "../utils/oauthHtml.js";
 
 export const registerUserController = async (req, res) => {
     try {
@@ -241,3 +251,41 @@ export const loginOAuthController = async (req, res) => {
         });
     }
 };
+
+export const googleOAuthCallbackController = async (req, res) => {
+    try {
+        const userData = req.user;
+        const mode = req.query.state || 'register';
+        
+        let result;
+        if (mode === 'login') {
+            result = await loginUserByGoogle(userData, req);
+        } else {
+            result = await registerUserByGoogle(userData, req);
+        }
+        
+        res.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: '/api/auth'
+        });
+        
+        return res.send(getOAuthCompletionHTML({
+            success: true,
+            data: {
+                accessToken: result.accessToken,
+                user: result.user,
+                isNewUser: !!result.isNewUser
+            }
+        }));
+    } catch (error) {
+        console.error('OAuth Callback Error:', error);
+        return res.send(getOAuthCompletionHTML({
+            success: false,
+            error: error.message
+        }));
+    }
+};
+

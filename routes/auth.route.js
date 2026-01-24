@@ -7,7 +7,8 @@ import {
     refreshTokensController,
     auditLogController,
     registerOAuthController,
-    loginOAuthController 
+    loginOAuthController,
+    googleOAuthCallbackController
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { 
@@ -15,21 +16,47 @@ import {
     loginLimiter, 
     logoutLimiter 
 } from "../middlewares/rateLimiter.middleware.js";
+import passport from "../config/passport.js";
 
 const router = Router();
 
 // Public routes with rate limiting
-router.post("/register", registerLimiter, registerUserController);
-router.post("/login", loginLimiter, loginUserController);
-router.post("/refresh-token", refreshTokensController);
-router.post("/register-oauth", registerLimiter, registerOAuthController);
-router.post("/login-oauth", loginLimiter, loginOAuthController);
+router.route("/register").post(registerLimiter, registerUserController);
+router.route("/login").post(loginLimiter, loginUserController);
+router.route("/refresh-token").post(refreshTokensController);
+router.route("/register-oauth").post(registerLimiter, registerOAuthController);
+router.route("/login-oauth").post(loginLimiter, loginOAuthController);
+
+// Google OAuth Popup Routes
+router.route('/google').get((req, res, next) => {
+    passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        session: false,
+        state: 'register'
+    })(req, res, next);
+});
+
+router.route('/google/login').get((req, res, next) => {
+    passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        session: false,
+        state: 'login'
+    })(req, res, next);
+});
+
+router.route('/google/callback').get(
+    passport.authenticate('google', { 
+        session: false,
+        failureRedirect: '/?error=oauth_failed'
+    }),
+    googleOAuthCallbackController
+);
 
 // Protected routes (require authentication) with rate limiting
-router.post("/logout", authMiddleware, logoutLimiter, logoutUserController);
-router.post("/logout-all", authMiddleware, logoutLimiter, logoutAllDevicesController);
+router.route("/logout").post(authMiddleware, logoutLimiter, logoutUserController);
+router.route("/logout-all").post(authMiddleware, logoutLimiter, logoutAllDevicesController);
 
 // Admin/Debug route
-router.post("/auditLog", auditLogController);
+router.route("/auditLog").post(authMiddleware, auditLogController);
 
 export default router;

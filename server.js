@@ -4,26 +4,43 @@ import connectDB from "./config/db.js";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import passport from "./config/passport.js";
 import { generalLimiter } from "./middlewares/rateLimiter.middleware.js";
 import authRoutes from "./routes/auth.route.js";
+import userRoutes from "./routes/user.route.js";
 
 dotenv.config();
 
 const app = express();
 
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(passport.initialize());
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: [process.env.CLIENT_URL || 'http://localhost:3000', 'http://localhost:5000'],
     credentials: true
 }));
-app.use(helmet());
+app.use(helmet({
+    crossOriginOpenerPolicy: { policy: "unsafe-none" },
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "script-src": ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+            "connect-src": ["'self'", "https://accounts.google.com", "https://www.googleapis.com"],
+            "frame-src": ["'self'", "https://accounts.google.com"],
+            "img-src": ["'self'", "data:", "https://*.googleusercontent.com"],
+        },
+    },
+}));
 app.use(generalLimiter);
 
+app.use(express.static('public'));
+
 app.use("/api/auth", authRoutes);
+app.use("/api/user", userRoutes);
 
 app.get("/api/health", (req, res) => {
     const HealthCheck = {
