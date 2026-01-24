@@ -1,4 +1,4 @@
-import { registerUser, loginUser, logoutUser, logoutAllDevices, refreshUserTokens, auditLogService } from "../services/auth.service.js";
+import { registerUser, loginUser, logoutUser, logoutAllDevices, refreshUserTokens, auditLogService, registerUserByGoogle, loginUserByGoogle } from "../services/auth.service.js";
 
 export const registerUserController = async (req, res) => {
     try {
@@ -166,6 +166,71 @@ export const auditLogController = async (req, res) => {
             success: true,
             message: "Audit log created successfully",
             data: result
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        
+        res.status(statusCode).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const registerOAuthController = async (req, res) => {
+    try {
+        const { email, name, googleId, picture } = req.body;
+        
+        const result = await registerUserByGoogle({ email, name, googleId, picture }, req);
+        
+        res.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: '/api/auth'
+        });
+        
+        res.status(result.isNewUser ? 201 : 200).json({ 
+            success: true, 
+            message: result.isNewUser ? "User registered successfully" : "Login successful",
+            data: {
+                accessToken: result.accessToken,
+                user: result.user,
+                isNewUser: result.isNewUser
+            }
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        
+        res.status(statusCode).json({ 
+            success: false, 
+            message: error.message 
+        });
+    }
+};
+
+export const loginOAuthController = async (req, res) => {
+    try {
+        const { email, name, googleId, picture } = req.body;
+        
+        const result = await loginUserByGoogle({ email, name, googleId, picture }, req);
+        
+        res.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: '/api/auth'
+        });
+        
+        res.status(200).json({
+            success: true,
+            message: "Login successful",
+            data: {
+                accessToken: result.accessToken,
+                user: result.user
+            }
         });
     } catch (error) {
         const statusCode = error.statusCode || 500;

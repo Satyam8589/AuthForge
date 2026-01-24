@@ -286,3 +286,191 @@ export const refreshUserTokens = async (refreshToken, req) => {
         throw error;
     }
 };
+    
+export const registerUserByGoogle = async (userData, req) => {
+    try {
+        const { email, name, googleId, picture } = userData;
+        
+        if (!email || !googleId) {
+            const error = new Error("Email and Google ID are required");
+            error.statusCode = 400;
+            throw error;
+        }
+        
+        const existingUser = await User.findOne({ 
+            $or: [{ email }, { googleId }] 
+        });
+        
+        if (existingUser) {
+            const accessToken = generateAccessToken({ 
+                userId: existingUser._id,
+                email: existingUser.email,
+                role: existingUser.role
+            });
+            
+            const refreshToken = generateRefreshToken({ 
+                userId: existingUser._id 
+            });
+
+            if (req) {
+                const { ipAddress, device } = getClientInfo(req);
+                
+                await RefreshToken.create({
+                    userId: existingUser._id,
+                    token: refreshToken,
+                    ipAddress,
+                    device,
+                    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                }).catch(err => console.error('RefreshToken save error:', err));
+
+                await logLoginSuccess(existingUser._id, req, existingUser.email);
+            }
+            
+            const userObject = existingUser.toObject();
+            const { password: _, ...userWithoutPassword } = userObject;
+            
+            return { 
+                accessToken, 
+                refreshToken,
+                user: userWithoutPassword,
+                isNewUser: false
+            };
+        }
+        
+        let username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+        
+        if (username.length < 3) {
+            username = username + Math.random().toString(36).substring(2, 5);
+        }
+        if (username.length > 20) {
+            username = username.substring(0, 20);
+        }
+        
+        let usernameExists = await User.findOne({ username });
+        let counter = 1;
+        while (usernameExists) {
+            const suffix = counter.toString();
+            const baseUsername = username.substring(0, 20 - suffix.length);
+            username = `${baseUsername}${suffix}`;
+            usernameExists = await User.findOne({ username });
+            counter++;
+        }
+        
+        const randomPassword = Math.random().toString(36).substring(2) + 
+                               Math.random().toString(36).substring(2) + 
+                               'Aa1';
+        const hashedPassword = await hashPassword(randomPassword);
+        
+        const newUser = await User.create({
+            name: name || email.split('@')[0],
+            username,
+            email,
+            password: hashedPassword,
+            googleId,
+            picture,
+            role: 'USER',
+            isEmailVerified: true
+        });
+        
+        if (!newUser) {
+            const error = new Error("Failed to create user");
+            error.statusCode = 500;
+            throw error;
+        }
+        
+        await logRegistration(newUser._id, req, newUser);
+        
+        const accessToken = generateAccessToken({ 
+            userId: newUser._id,
+            email: newUser.email,
+            role: newUser.role
+        });
+        
+        const refreshToken = generateRefreshToken({ 
+            userId: newUser._id 
+        });
+
+        if (req) {
+            const { ipAddress, device } = getClientInfo(req);
+            
+            await RefreshToken.create({
+                userId: newUser._id,
+                token: refreshToken,
+                ipAddress,
+                device,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            }).catch(err => console.error('RefreshToken save error:', err));
+        }
+        
+        const userObject = newUser.toObject();
+        const { password: _, ...userWithoutPassword } = userObject;
+        
+        return { 
+            accessToken, 
+            refreshToken,
+            user: userWithoutPassword,
+            isNewUser: true
+        };
+        
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const loginUserByGoogle = async (userData, req) => {
+    try {
+        const { email, name, googleId, picture } = userData;
+        
+        if (!email || !googleId) {
+            const error = new Error("Email and Google ID are required");
+            error.statusCode = 400;
+            throw error;
+        }
+        
+        const existingUser = await User.findOne({ 
+            $or: [{ email }, { googleId }] 
+        });
+        
+        if (!existingUser) {
+            const error = new Error("User not found");
+            error.statusCode = 404;
+            throw error;
+        }
+        
+        const accessToken = generateAccessToken({ 
+            userId: existingUser._id,
+            email: existingUser.email,
+            role: existingUser.role
+        });
+        
+        const refreshToken = generateRefreshToken({ 
+            userId: existingUser._id 
+        });
+
+        if (req) {
+            const { ipAddress, device } = getClientInfo(req);
+            
+            await RefreshToken.create({
+                userId: existingUser._id,
+                token: refreshToken,
+                ipAddress,
+                device,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            }).catch(err => console.error('RefreshToken save error:', err));
+
+            await logLoginSuccess(existingUser._id, req, existingUser.email);
+        }
+        
+        const userObject = existingUser.toObject();
+        const { password: _, ...userWithoutPassword } = userObject;
+        
+        return { 
+            accessToken, 
+            refreshToken,
+            user: userWithoutPassword,
+            isNewUser: false
+        };
+    } catch (error) {
+        throw error;
+    }
+};

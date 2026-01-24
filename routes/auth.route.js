@@ -5,7 +5,8 @@ import {
     logoutUserController,
     logoutAllDevicesController,
     refreshTokensController,
-    auditLogController 
+    auditLogController,
+    registerOAuthController 
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { 
@@ -20,6 +21,7 @@ const router = Router();
 router.post("/register", registerLimiter, registerUserController);
 router.post("/login", loginLimiter, loginUserController);
 router.post("/refresh-token", refreshTokensController);
+router.post("/register-oauth", registerLimiter, registerOAuthController);
 
 // Protected routes (require authentication) with rate limiting
 router.post("/logout", authMiddleware, logoutLimiter, logoutUserController);

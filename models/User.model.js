@@ -25,6 +25,14 @@ const userSchema = new mongoose.Schema({
         required: true,
         select: false
     },
+    googleId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    picture: {
+        type: String
+    },
     role: {
         type: String,
         enum: ["ADMIN", "MANAGER", "USER"],
