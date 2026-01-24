@@ -202,3 +202,23 @@ export const loginUser = async (userData, req) => {
         throw error;
     }
 };
+
+export const auditLogService = async (userId, action, req, details = {}) => {
+    try {
+        if (req) {
+            const { ipAddress, userAgent } = getClientInfo(req);
+            await AuditLog.create({
+                userId: userId,
+                action: action,
+                ipAddress,
+                userAgent,
+                details: details
+            }).catch(err => console.error('Audit log error:', err));
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Audit log error:', error);
+        return false;
+    }
+};
