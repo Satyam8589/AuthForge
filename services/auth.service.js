@@ -1,5 +1,6 @@
 import User from "../models/User.model.js";
-import { hashPassword } from "../utils/hash.js";
+import { hashPassword, comparePassword } from "../utils/hash.js";
+import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
 
 export const registerUser = async (userData) => {
     try {
@@ -66,6 +67,64 @@ export const registerUser = async (userData) => {
 
         return userWithoutPassword;
 
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const loginUser = async (userData) => {
+    try {
+        let { email, password } = userData;
+
+        email = email?.trim();
+
+        if (!email || !password) {
+            const error = new Error("All fields are required");
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            const error = new Error("Invalid email format");
+            error.statusCode = 400;
+            throw error;
+        }
+        
+        const user = await User.findOne({ email }).select("+password");
+        
+        if (!user) {
+            const error = new Error("Invalid credentials");
+            error.statusCode = 401;
+            throw error;
+        }
+        
+        const isPasswordValid = await comparePassword(password, user.password);
+        
+        if (!isPasswordValid) {
+            const error = new Error("Invalid credentials");
+            error.statusCode = 401;
+            throw error;
+        }
+        
+        const accessToken = generateAccessToken({ 
+            userId: user._id,
+            email: user.email,
+            role: user.role
+        });
+        
+        const refreshToken = generateRefreshToken({ 
+            userId: user._id 
+        });
+        
+        const userObject = user.toObject();
+        const { password: _, ...userWithoutPassword } = userObject;
+        
+        return { 
+            accessToken, 
+            refreshToken,
+            user: userWithoutPassword
+        };
     } catch (error) {
         throw error;
     }

@@ -62,5 +62,3 @@ temp/
 
 # Documentation
 doc/
-test/
-jest.config.js
