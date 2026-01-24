@@ -3,7 +3,8 @@ import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
+import { generalLimiter } from "./middlewares/rateLimiter.middleware.js";
 import authRoutes from "./routes/auth.route.js";
 
 dotenv.config();
@@ -14,9 +15,13 @@ app.set('trust proxy', true);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    credentials: true
+}));
 app.use(helmet());
-app.use(rateLimit());
+app.use(generalLimiter);
 
 app.use("/api/auth", authRoutes);
 

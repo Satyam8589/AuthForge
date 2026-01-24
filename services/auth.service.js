@@ -1,10 +1,16 @@
 import User from "../models/User.model.js";
+import RefreshToken from "../models/RefreshToken.model.js";
 import { hashPassword, comparePassword } from "../utils/hash.js";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 import { getClientInfo } from "../utils/clientInfo.js";
-import { getLocationFromIP } from "../utils/clientInfo.js";
-import AuditLog from "../models/AuditLog.model.js";
-
+import { 
+    logRegistration, 
+    logLoginSuccess, 
+    logLoginFailed, 
+    logLogout,
+    logLogoutAllDevices,
+    logAuditEvent 
+} from "../utils/audit.js";
 
 export const registerUser = async (userData, req) => {
     try {
@@ -66,20 +72,7 @@ export const registerUser = async (userData, req) => {
             throw error;
         }
 
-        if (req) {
-            const { ipAddress, userAgent } = getClientInfo(req);
-            
-            await AuditLog.create({
-                userId: user._id,
-                action: 'REGISTER',
-                ipAddress,
-                userAgent,
-                details: {
-                    email: user.email,
-                    username: user.username
-                }
-            }).catch(err => console.error('Audit log error:', err));
-        }
+        await logRegistration(user._id, req, user);
 
         const userObject = user.toObject();
         const { password: _, ...userWithoutPassword } = userObject;
@@ -113,16 +106,7 @@ export const loginUser = async (userData, req) => {
         const user = await User.findOne({ email }).select("+password");
         
         if (!user) {
-            if (req) {
-                const { ipAddress, userAgent } = getClientInfo(req);
-                await AuditLog.create({
-                    userId: null,
-                    action: 'LOGIN_FAILED',
-                    ipAddress,
-                    userAgent,
-                    details: { email, reason: 'User not found' }
-                }).catch(err => console.error('Audit log error:', err));
-            }
+            await logLoginFailed(null, req, email, 'User not found');
             
             const error = new Error("Invalid credentials");
             error.statusCode = 401;
@@ -135,16 +119,7 @@ export const loginUser = async (userData, req) => {
             await User.findByIdAndUpdate(user._id, {
                 $inc: { loginAttempts: 1 }
             });
-            if (req) {
-                const { ipAddress, userAgent } = getClientInfo(req);
-                await AuditLog.create({
-                    userId: user._id,
-                    action: 'LOGIN_FAILED',
-                    ipAddress,
-                    userAgent,
-                    details: { email, reason: 'Invalid password' }
-                }).catch(err => console.error('Audit log error:', err));
-            }
+            await logLoginFailed(user._id, req, email, 'Invalid password');
             
             const error = new Error("Invalid credentials");
             error.statusCode = 401;
@@ -170,24 +145,16 @@ export const loginUser = async (userData, req) => {
 
         if (req) {
             const { ipAddress, device } = getClientInfo(req);
-            const RefreshToken = (await import("../models/RefreshToken.model.js")).default;
             
             await RefreshToken.create({
                 userId: user._id,
                 token: refreshToken,
                 ipAddress,
                 device,
-                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
             }).catch(err => console.error('RefreshToken save error:', err));
 
-            const { userAgent } = getClientInfo(req);
-            await AuditLog.create({
-                userId: user._id,
-                action: 'LOGIN_SUCCESS',
-                ipAddress,
-                userAgent,
-                details: { email: user.email }
-            }).catch(err => console.error('Audit log error:', err));
+            await logLoginSuccess(user._id, req, user.email);
         }
         
         const userObject = user.toObject();
@@ -204,21 +171,118 @@ export const loginUser = async (userData, req) => {
 };
 
 export const auditLogService = async (userId, action, req, details = {}) => {
+    return await logAuditEvent({ userId, action, req, details });
+};
+
+export const logoutUser = async (userId, refreshToken, req) => {
     try {
-        if (req) {
-            const { ipAddress, userAgent } = getClientInfo(req);
-            await AuditLog.create({
-                userId: userId,
-                action: action,
-                ipAddress,
-                userAgent,
-                details: details
-            }).catch(err => console.error('Audit log error:', err));
+        const deletedToken = await RefreshToken.findOneAndDelete({
+            userId,
+            token: refreshToken
+        });
+
+        if (!deletedToken) {
+            const error = new Error("Invalid refresh token");
+            error.statusCode = 401;
+            throw error;
         }
 
-        return true;
+        await logLogout(userId, req, {
+            device: deletedToken.device,
+            tokenId: deletedToken._id
+        });
+
+        return {
+            success: true,
+            message: "Logged out successfully"
+        };
     } catch (error) {
-        console.error('Audit log error:', error);
-        return false;
+        throw error;
+    }
+};
+
+export const logoutAllDevices = async (userId, req) => {
+    try {
+        const result = await RefreshToken.deleteMany({ userId });
+
+        await logLogoutAllDevices(userId, req, result.deletedCount);
+
+        return {
+            success: true,
+            message: `Logged out from ${result.deletedCount} device(s) successfully`,
+            devicesLoggedOut: result.deletedCount
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+export const refreshUserTokens = async (refreshToken, req) => {
+    try {
+        if (!refreshToken) {
+            const error = new Error("Refresh token is required");
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const decoded = verifyRefreshToken(refreshToken);
+        
+        const storedToken = await RefreshToken.findOne({ 
+            userId: decoded.userId,
+            token: refreshToken 
+        });
+
+        if (!storedToken) {
+            const error = new Error("Token revoked or invalid");
+            error.statusCode = 401;
+            throw error;
+        }
+
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+            const error = new Error("User not found");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const newAccessToken = generateAccessToken({ 
+            userId: user._id,
+            email: user.email,
+            role: user.role
+        });
+
+        const newRefreshToken = generateRefreshToken({ 
+            userId: user._id 
+        });
+
+        if (req) {
+            const { ipAddress, device } = getClientInfo(req);
+            
+            await RefreshToken.findByIdAndDelete(storedToken._id);
+            
+            await RefreshToken.create({
+                userId: user._id,
+                token: newRefreshToken,
+                ipAddress,
+                device,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            });
+
+            await logAuditEvent({
+                userId: user._id,
+                action: 'TOKEN_REFRESHED',
+                req,
+                details: { email: user.email }
+            });
+        }
+
+        return {
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken
+        };
+    } catch (error) {
+        if (error.message.includes('expired') || error.message.includes('invalid')) {
+            error.statusCode = 401;
+        }
+        throw error;
     }
 };
