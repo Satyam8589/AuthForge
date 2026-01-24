@@ -4,6 +4,7 @@ import connectDB from "./config/db.js";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import authRoutes from "./routes/auth.route.js";
 
 dotenv.config();
 
@@ -15,8 +16,30 @@ app.use(cors());
 app.use(helmet());
 app.use(rateLimit());
 
-app.get("/", (req, res) => {
-    res.send("AuthForge API is running");
+app.use("/api/auth", authRoutes);
+
+
+app.get("/api/health", (req, res) => {
+    const HealthCheck = {
+        'Health Check': {
+            status: "ok",
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+        }
+    }
+    try {
+        res.status(200).json({
+            success: true,
+            message: "Server is running",
+            data: HealthCheck   ,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Server is not running",
+        });
+    }
 });
 
 const start = async () => {
