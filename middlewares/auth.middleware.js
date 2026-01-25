@@ -1,4 +1,5 @@
 import { verifyAccessToken } from "../utils/jwt.js";
+import { isTokenBlacklisted } from "../services/redis.service.js";
 
 export const authMiddleware = async (req, res, next) => {
     try {
@@ -27,6 +28,15 @@ export const authMiddleware = async (req, res, next) => {
             });
         }
 
+        // Check Redis Blacklist
+        const isBlacklisted = await isTokenBlacklisted(token);
+        if (isBlacklisted) {
+            return res.status(401).json({
+                success: false,
+                message: "Token is no longer valid (logged out).",
+            });
+        }
+
         const decoded = verifyAccessToken(token);
 
         req.user = {
@@ -34,10 +44,12 @@ export const authMiddleware = async (req, res, next) => {
             email: decoded.email,
             role: decoded.role
         };
+        req.token = token; // Attach raw token for logout/blacklisting
 
         next();
 
     } catch (error) {
+
         if (error.message === 'Access token has expired') {
             return res.status(401).json({
                 success: false,

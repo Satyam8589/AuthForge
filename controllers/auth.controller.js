@@ -9,6 +9,8 @@ import {
     loginUserByGoogle
 } from "../services/auth.service.js";
 import { getOAuthCompletionHTML } from "../utils/oauthHtml.js";
+import { blacklistToken } from "../services/redis.service.js";
+
 
 export const registerUserController = async (req, res) => {
     try {
@@ -77,12 +79,17 @@ export const logoutUserController = async (req, res) => {
 
         const result = await logoutUser(userId, refreshToken, req);
         
+        if (req.token) {
+            await blacklistToken(req.token, 3600);
+        }
+
         res.clearCookie('refreshToken', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
             path: '/api/auth'
         });
+
 
         res.status(200).json({
             success: true,
