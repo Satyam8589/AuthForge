@@ -1,8 +1,3 @@
-/**
- * Generates the HTML for the OAuth popup completion screen.
- * @param {Object} options - Success or error data
- * @returns {string} HTML string
- */
 export const getOAuthCompletionHTML = ({ success, data, error }) => {
     if (success) {
         return `
