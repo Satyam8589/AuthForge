@@ -937,6 +937,18 @@ body {
     gap: 0.6rem;
 }
 
+.project-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge-success {
+    background: var(--success-bg);
+    border: 1px solid var(--success-border);
+    color: var(--success);
+}
+
 .conn-box {
     background: var(--bg-terminal);
     border: 1px solid rgba(56, 189, 248, 0.25);

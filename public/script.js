@@ -599,31 +599,33 @@ function renderProjects(projects) {
     }
 
     projectsList.innerHTML = projects.map(p => `
-        <div class="project-item">
+        <div class="project-item" id="proj-${escapeHtml(p.projectId)}">
             <div class="project-header">
                 <span class="project-title">
                     ⚡ ${escapeHtml(p.name)}
-                    <span class="badge">Active</span>
+                    <span class="badge badge-success">Active</span>
                 </span>
-                <div>
-                    <button onclick="regenerateSecret('${p.projectId}')" class="btn-icon" title="Regenerate API Secret">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <div class="project-header-actions">
+                    <button onclick="regenerateSecret('${escapeHtml(p.projectId)}')" class="btn-icon" title="Regenerate API Secret">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                         </svg>
+                        <span>Regenerate</span>
                     </button>
-                    <button onclick="deleteProject('${p.projectId}')" class="btn-icon" title="Delete project">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444">
+                    <button onclick="deleteProject('${escapeHtml(p.projectId)}')" class="btn-icon btn-danger-icon" title="Delete Project">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                         </svg>
+                        <span>Delete</span>
                     </button>
                 </div>
             </div>
 
-            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Connection String (Use in external apps):</label>
+            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;">Connection String (Use in external apps):</label>
             <div class="conn-box">
                 <span class="conn-text">${escapeHtml(p.connectionString)}</span>
-                <button class="btn-copy" onclick="copyText('${escapeHtml(p.connectionString)}')">Copy String</button>
+                <button class="btn-copy" onclick="copyText('${escapeHtml(p.connectionString)}', this)">Copy String</button>
             </div>
 
             <div class="keys-info">
@@ -638,11 +640,11 @@ function renderUnauthenticatedProjectsNotice() {
     if (!projectsList) return;
     const demoConn = `authforge://af_pk_live_demo123:af_sk_live_demo456@proj_demo?host=${encodeURIComponent(getApiOrigin())}`;
     projectsList.innerHTML = `
-        <div style="margin-bottom: 1rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 8px; border: 1px dashed var(--primary);">
-            <p style="font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.5rem;">💡 <strong>Sample Connection String Preview</strong> (Sign in to create your live project strings):</p>
+        <div style="margin-bottom: 1.25rem; padding: 1.25rem; background: rgba(99, 102, 241, 0.08); border-radius: var(--radius-md); border: 1px dashed rgba(99, 102, 241, 0.35);">
+            <p style="font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.6rem;">💡 <strong>Sample Connection String Preview</strong> (Sign in to create your live project strings):</p>
             <div class="conn-box">
                 <span class="conn-text">${escapeHtml(demoConn)}</span>
-                <button class="btn-copy" onclick="copyText('${escapeHtml(demoConn)}')">Copy Demo</button>
+                <button class="btn-copy" onclick="copyText('${escapeHtml(demoConn)}', this)">Copy Demo</button>
             </div>
         </div>
         <p class="empty-state">🔒 Sign In or Register to create live project API keys & connection strings!</p>
@@ -670,7 +672,7 @@ window.regenerateSecret = async function(projectId) {
         const result = await response.json();
         displayResponse(result, response.ok);
         if (response.ok) {
-            showToast('API Secret regenerated!', 'success');
+            showToast('✅ API Secret regenerated successfully!', 'success');
             loadUserProjects();
         } else {
             showToast(result.message || 'Regeneration failed', 'error');
@@ -692,7 +694,7 @@ window.deleteProject = async function(projectId) {
         const result = await response.json();
         displayResponse(result, response.ok);
         if (response.ok) {
-            showToast('Project deleted', 'success');
+            showToast('🗑️ Project deleted successfully', 'success');
             loadUserProjects();
         } else {
             showToast(result.message || 'Delete failed', 'error');
@@ -747,12 +749,44 @@ async function handleSdkTest(e) {
     }
 }
 
-window.copyText = function(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Connection string copied to clipboard!', 'success');
-    }).catch(() => {
-        showToast('Failed to copy string', 'error');
-    });
+window.copyText = function(text, btnElement) {
+    const doCopyFallback = () => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            onSuccess();
+        } catch (e) {
+            showToast('Failed to copy string', 'error');
+        } finally {
+            document.body.removeChild(textarea);
+        }
+    };
+
+    const onSuccess = () => {
+        showToast('📋 Connection string copied to clipboard!', 'success');
+        if (btnElement) {
+            const originalText = btnElement.textContent;
+            btnElement.textContent = '✓ Copied!';
+            btnElement.style.background = 'var(--success)';
+            btnElement.style.color = '#080c14';
+            setTimeout(() => {
+                btnElement.textContent = originalText;
+                btnElement.style.background = '';
+                btnElement.style.color = '';
+            }, 2000);
+        }
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(onSuccess).catch(doCopyFallback);
+    } else {
+        doCopyFallback();
+    }
 };
 
 function escapeHtml(str) {
