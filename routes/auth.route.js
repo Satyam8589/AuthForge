@@ -29,6 +29,9 @@ router.route("/login-oauth").post(loginLimiter, loginOAuthController);
 
 // Google OAuth Popup Routes
 router.route('/google').get((req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        return res.status(400).json({ success: false, message: "Google OAuth is not configured on this server." });
+    }
     passport.authenticate('google', {
         scope: ['profile', 'email'],
         session: false,
@@ -37,6 +40,9 @@ router.route('/google').get((req, res, next) => {
 });
 
 router.route('/google/login').get((req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        return res.status(400).json({ success: false, message: "Google OAuth is not configured on this server." });
+    }
     passport.authenticate('google', {
         scope: ['profile', 'email'],
         session: false,
@@ -45,10 +51,15 @@ router.route('/google/login').get((req, res, next) => {
 });
 
 router.route('/google/callback').get(
-    passport.authenticate('google', { 
-        session: false,
-        failureRedirect: '/?error=oauth_failed'
-    }),
+    (req, res, next) => {
+        if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+            return res.redirect('/?error=oauth_not_configured');
+        }
+        passport.authenticate('google', { 
+            session: false,
+            failureRedirect: '/?error=oauth_failed'
+        })(req, res, next);
+    },
     googleOAuthCallbackController
 );
 
