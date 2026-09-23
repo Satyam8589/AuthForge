@@ -39,6 +39,16 @@ app.use(helmet({
 }));
 app.use(generalLimiter);
 
+// Connect DB middleware for serverless invocations
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (err) {
+        next(err);
+    }
+});
+
 app.use(express.static('public'));
 
 app.use("/api/auth", authRoutes);
@@ -72,12 +82,17 @@ app.get("/api/health", (req, res) => {
 const start = async () => {
     try {
         await connectDB();
-        app.listen(process.env.PORT || 2000, () => {
-            console.log(`Server is running on port http://localhost:${process.env.PORT}`);
-        });
+        if (!process.env.VERCEL) {
+            const PORT = process.env.PORT || 5000;
+            app.listen(PORT, () => {
+                console.log(`Server is running on port http://localhost:${PORT}`);
+            });
+        }
     } catch (error) {
         console.error("Error connecting to MongoDB:", error);
     }
-}
+};
 
 start();
+
+export default app;
