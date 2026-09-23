@@ -829,16 +829,27 @@ function updateUIUnauthenticated() {
     if (currentTab === 'audit') renderUnauthenticatedAuditNotice();
 }
 
-// Display Response
 function displayResponse(data, isSuccess) {
     responseElement.textContent = JSON.stringify(data, null, 2);
     responseElement.className = `response-content ${isSuccess ? 'success' : 'error'}`;
+    const statusTag = document.querySelector('.terminal-status-tag');
+    if (statusTag) {
+        statusTag.textContent = isSuccess ? '200 OK / Success' : 'Error / Failed';
+        statusTag.style.color = isSuccess ? 'var(--success)' : 'var(--error)';
+        statusTag.style.background = isSuccess ? 'var(--success-bg)' : 'var(--error-bg)';
+    }
 }
 
 // Clear Response
 function clearResponse() {
-    responseElement.textContent = 'No response yet. Try an action above!';
+    responseElement.textContent = 'No response yet. Perform an action above to inspect live API payloads.';
     responseElement.className = 'response-content';
+    const statusTag = document.querySelector('.terminal-status-tag');
+    if (statusTag) {
+        statusTag.textContent = 'Ready';
+        statusTag.style.color = 'var(--success)';
+        statusTag.style.background = 'var(--success-bg)';
+    }
 }
 
 // Show Toast
