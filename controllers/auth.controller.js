@@ -4,7 +4,8 @@ import {
     logoutUser, 
     logoutAllDevices, 
     refreshUserTokens, 
-    auditLogService, 
+    auditLogService,
+    getUserAuditLogsService,
     registerUserByGoogle, 
     loginUserByGoogle
 } from "../services/auth.service.js";
@@ -175,14 +176,26 @@ export const refreshTokensController = async (req, res) => {
 
 export const auditLogController = async (req, res) => {
     try {
-        const { userId, action, details } = req.body;
+        const { userId, action, details, limit = 10 } = req.body || {};
         
-        const result = await auditLogService(userId, action, req, details);
-        
-        res.status(200).json({
+        if (action) {
+            const targetUserId = userId || req.user?.userId;
+            const result = await auditLogService(targetUserId, action, req, details);
+            return res.status(200).json({
+                success: true,
+                message: "Audit log created successfully",
+                data: result
+            });
+        }
+
+        const currentUserId = req.user?.userId;
+        const queryLimit = req.query?.limit || limit;
+        const logs = await getUserAuditLogsService(currentUserId, queryLimit);
+
+        return res.status(200).json({
             success: true,
-            message: "Audit log created successfully",
-            data: result
+            message: "Audit logs retrieved successfully",
+            data: logs
         });
     } catch (error) {
         const statusCode = error.statusCode || 500;

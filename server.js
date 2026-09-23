@@ -8,6 +8,8 @@ import passport from "./config/passport.js";
 import { generalLimiter } from "./middlewares/rateLimiter.middleware.js";
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
+import projectRoutes from "./routes/project.route.js";
+import sdkRoutes from "./routes/sdk.route.js";
 
 dotenv.config();
 
@@ -20,7 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
 app.use(cors({
-    origin: [process.env.CLIENT_URL || 'http://localhost:3000', 'http://localhost:5000'],
+    origin: [process.env.CLIENT_URL || 'http://localhost:3000', 'http://localhost:5000', 'http://localhost:2000'],
     credentials: true
 }));
 app.use(helmet({
@@ -41,6 +43,8 @@ app.use(express.static('public'));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/sdk", sdkRoutes);
 
 app.get("/api/health", (req, res) => {
     const HealthCheck = {

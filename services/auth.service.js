@@ -9,7 +9,8 @@ import {
     logLoginFailed, 
     logLogout,
     logLogoutAllDevices,
-    logAuditEvent 
+    logAuditEvent,
+    getAuditLogs
 } from "../utils/audit.js";
 
 export const registerUser = async (userData, req) => {
@@ -172,6 +173,10 @@ export const loginUser = async (userData, req) => {
 
 export const auditLogService = async (userId, action, req, details = {}) => {
     return await logAuditEvent({ userId, action, req, details });
+};
+
+export const getUserAuditLogsService = async (userId, limit = 10) => {
+    return await getAuditLogs(userId, limit);
 };
 
 export const logoutUser = async (userId, refreshToken, req) => {

@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
-import { registerUser, loginUser } from '../../services/auth.service.js';
+import { registerUser, loginUser, getUserAuditLogsService } from '../../services/auth.service.js';
 import AuditLog from '../../models/AuditLog.model.js';
 import User from '../../models/User.model.js';
 import RefreshToken from '../../models/RefreshToken.model.js';
@@ -461,6 +461,23 @@ describe('Audit Log Functionality', () => {
       });
       
       expect(logs.length).toBeGreaterThan(0);
+    });
+
+    test('should fetch audit logs via getUserAuditLogsService', async () => {
+      const mockReq = createMockReq();
+      
+      const user = await registerUser({
+        name: 'Audit Fetch User',
+        username: 'auditfetchuser',
+        email: 'auditfetch@example.com',
+        password: 'SecurePass123'
+      }, mockReq);
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const logs = await getUserAuditLogsService(user._id, 10);
+      expect(logs.length).toBe(1);
+      expect(logs[0].action).toBe('REGISTER');
     });
   });
 });

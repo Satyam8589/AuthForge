@@ -1,9 +1,13 @@
-// Configuration
-const API_BASE_URL = 'http://localhost:5000/api/auth';
+// Dynamic API base URLs based on window origin
+const getApiOrigin = () => window.location.origin;
+const API_BASE_URL = `${getApiOrigin()}/api/auth`;
+const PROJECTS_API_URL = `${getApiOrigin()}/api/projects`;
+const SDK_API_URL = `${getApiOrigin()}/api/sdk`;
 
 // State
 let accessToken = localStorage.getItem('accessToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser'));
+let currentTab = 'auth';
 
 // DOM Elements
 const registerForm = document.getElementById('registerForm');
@@ -13,6 +17,16 @@ const userCard = document.getElementById('userCard');
 const userInfo = document.getElementById('userInfo');
 const userStatus = document.getElementById('userStatus');
 const protectedActions = document.getElementById('protectedActions');
+const projectsCard = document.getElementById('projectsCard');
+const projectsList = document.getElementById('projectsList');
+const createProjectForm = document.getElementById('createProjectForm');
+const refreshProjectsBtn = document.getElementById('refreshProjectsBtn');
+const sandboxCard = document.getElementById('sandboxCard');
+const sdkTestForm = document.getElementById('sdkTestForm');
+const auditCard = document.getElementById('auditCard');
+const auditList = document.getElementById('auditList');
+const fetchAuditBtn = document.getElementById('fetchAuditBtn');
+const closeAuditBtn = document.getElementById('closeAuditBtn');
 const toast = document.getElementById('toast');
 const googleRegisterBtn = document.getElementById('googleRegisterBtn');
 const googleLoginBtn = document.getElementById('googleLoginBtn');
@@ -27,7 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuthStatus();
     setupEventListeners();
     handleOAuthCallback();
+    setupTabs();
     
+    // Pre-fill SDK Sandbox with sample connection string for instant testing
+    setupSdkSandboxDefaults();
+
     // Listen for messages from OAuth popup
     window.addEventListener('message', (event) => {
         if (event.data.type === 'oauth-success') {
@@ -38,6 +56,66 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// Setup Navigation Tabs
+function setupTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTab = btn.dataset.tab;
+            switchTab(currentTab);
+        });
+    });
+}
+
+function switchTab(tab) {
+    if (tab === 'auth') {
+        authSection.style.display = accessToken ? 'none' : 'grid';
+        if (accessToken && userCard) userCard.style.display = 'block';
+        if (accessToken && protectedActions) protectedActions.style.display = 'block';
+        if (projectsCard) projectsCard.style.display = 'none';
+        if (sandboxCard) sandboxCard.style.display = 'none';
+        if (auditCard) auditCard.style.display = 'none';
+    } else if (tab === 'projects') {
+        authSection.style.display = 'none';
+        if (projectsCard) projectsCard.style.display = 'block';
+        if (sandboxCard) sandboxCard.style.display = 'none';
+        if (auditCard) auditCard.style.display = 'none';
+        if (accessToken) {
+            loadUserProjects();
+        } else {
+            renderUnauthenticatedProjectsNotice();
+        }
+    } else if (tab === 'sandbox') {
+        authSection.style.display = 'none';
+        if (projectsCard) projectsCard.style.display = 'none';
+        if (sandboxCard) sandboxCard.style.display = 'block';
+        if (auditCard) auditCard.style.display = 'none';
+    } else if (tab === 'audit') {
+        authSection.style.display = 'none';
+        if (projectsCard) projectsCard.style.display = 'none';
+        if (sandboxCard) sandboxCard.style.display = 'none';
+        if (auditCard) auditCard.style.display = 'block';
+        if (accessToken) {
+            fetchAuditLogs();
+        } else {
+            renderUnauthenticatedAuditNotice();
+        }
+    }
+}
+
+function setupSdkSandboxDefaults() {
+    const connInput = document.getElementById('sdkConnStrInput');
+    const tokenInput = document.getElementById('sdkTokenInput');
+    if (connInput && !connInput.value) {
+        connInput.value = `authforge://af_pk_live_demo123:af_sk_live_demo456@proj_demo?host=${encodeURIComponent(getApiOrigin())}`;
+    }
+    if (tokenInput && accessToken) {
+        tokenInput.value = accessToken;
+    }
+}
 
 // Event Listeners
 function setupEventListeners() {
@@ -67,13 +145,42 @@ function setupEventListeners() {
     if (clearResponseBtn) {
         clearResponseBtn.addEventListener('click', clearResponse);
     }
+
+    if (createProjectForm) {
+        createProjectForm.addEventListener('submit', handleCreateProject);
+    }
+
+    if (refreshProjectsBtn) {
+        refreshProjectsBtn.addEventListener('click', loadUserProjects);
+    }
+
+    if (fetchAuditBtn) {
+        fetchAuditBtn.addEventListener('click', () => {
+            switchTab('audit');
+            const auditTabBtn = document.querySelector('[data-tab="audit"]');
+            if (auditTabBtn) {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                auditTabBtn.classList.add('active');
+            }
+        });
+    }
+
+    if (closeAuditBtn) {
+        closeAuditBtn.addEventListener('click', () => {
+            if (auditCard) auditCard.style.display = 'none';
+        });
+    }
+
+    if (sdkTestForm) {
+        sdkTestForm.addEventListener('submit', handleSdkTest);
+    }
 }
 
 // Check if user is authenticated
 async function checkAuthStatus() {
     if (accessToken) {
         try {
-            const response = await fetch(`http://localhost:5000/api/user/current-user`, {
+            const response = await fetch(`${getApiOrigin()}/api/user/current-user`, {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
@@ -85,7 +192,6 @@ async function checkAuthStatus() {
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 updateUIAuthenticated();
             } else {
-                // Token expired or invalid
                 console.error('Session expired');
                 accessToken = null;
                 currentUser = null;
@@ -95,7 +201,6 @@ async function checkAuthStatus() {
             }
         } catch (error) {
             console.error('Auth check failed:', error);
-            // On network error, keep current UI but maybe warn the user
             updateUIAuthenticated(); 
         }
     } else {
@@ -103,7 +208,7 @@ async function checkAuthStatus() {
     }
 }
 
-// Handle Register
+// Handle Registration
 async function handleRegister(e) {
     e.preventDefault();
     const formData = new FormData(registerForm);
@@ -162,7 +267,6 @@ async function handleLogin(e) {
             accessToken = result.data.accessToken;
             currentUser = result.data.user;
             
-            // Persist state
             localStorage.setItem('accessToken', accessToken);
             localStorage.setItem('currentUser', JSON.stringify(currentUser));
             
@@ -187,8 +291,7 @@ function signInWithGoogle(mode = 'register') {
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
     
-    // Choose the endpoint based on mode: /api/auth/google (unified) or /api/auth/google/login (strict)
-    const endpoint = mode === 'login' ? '/api/auth/google/login' : '/api/auth/google';
+    const endpoint = mode === 'login' ? `${API_BASE_URL}/google/login` : `${API_BASE_URL}/google`;
     
     const popup = window.open(
         endpoint,
@@ -200,10 +303,9 @@ function signInWithGoogle(mode = 'register') {
         showToast('Please allow popups for this site', 'error');
         return;
     }
-    
-    // Check if popup was closed
+
     const checkPopup = setInterval(() => {
-        if (popup.closed) {
+        if (!popup || popup.closed) {
             clearInterval(checkPopup);
         }
     }, 1000);
@@ -213,7 +315,6 @@ function signInWithGoogle(mode = 'register') {
 function handleOAuthCallback() {
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Check for OAuth success
     if (urlParams.get('oauth') === 'success') {
         const accessTokenParam = urlParams.get('accessToken');
         const userParam = urlParams.get('user');
@@ -224,7 +325,6 @@ function handleOAuthCallback() {
                 accessToken = decodeURIComponent(accessTokenParam);
                 currentUser = JSON.parse(decodeURIComponent(userParam));
                 
-                // Persist state
                 localStorage.setItem('accessToken', accessToken);
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 
@@ -251,17 +351,13 @@ function handleOAuthCallback() {
             }
         }
         
-        // Clean up URL
         window.history.replaceState({}, document.title, '/');
     }
     
-    // Check for OAuth error
     if (urlParams.get('error')) {
         const errorMessage = decodeURIComponent(urlParams.get('error'));
         showToast(`OAuth Error: ${errorMessage}`, 'error');
         displayResponse({ error: errorMessage }, false);
-        
-        // Clean up URL
         window.history.replaceState({}, document.title, '/');
     }
 }
@@ -273,7 +369,6 @@ function handleOAuthMessage(data) {
     accessToken = token;
     currentUser = user;
     
-    // Persist state
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     
@@ -369,7 +464,7 @@ async function logoutAllDevices() {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('currentUser');
             updateUIUnauthenticated();
-            showToast(`Logged out from ${result.data.devicesLoggedOut} device(s)!`, 'success');
+            showToast(`Logged out from ${result.data?.devicesLoggedOut || 1} device(s)!`, 'success');
         } else {
             showToast(result.message || 'Logout all devices failed', 'error');
         }
@@ -379,11 +474,304 @@ async function logoutAllDevices() {
     }
 }
 
+// Fetch Audit Logs
+async function fetchAuditLogs() {
+    if (!accessToken) return;
+    try {
+        const response = await fetch(`${API_BASE_URL}/auditLog`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ limit: 10 })
+        });
+
+        const result = await response.json();
+        displayResponse(result, response.ok);
+
+        if (response.ok && result.data) {
+            renderAuditLogs(result.data);
+            if (auditCard) auditCard.style.display = 'block';
+            showToast('Audit logs loaded!', 'success');
+        } else {
+            showToast(result.message || 'Failed to load audit logs', 'error');
+        }
+    } catch (error) {
+        showToast('Network error fetching audit logs', 'error');
+    }
+}
+
+function renderAuditLogs(logs) {
+    if (!auditList) return;
+    if (!logs || logs.length === 0) {
+        auditList.innerHTML = `<p class="empty-state">No security audit logs found.</p>`;
+        return;
+    }
+
+    auditList.innerHTML = logs.map(log => `
+        <div class="audit-item">
+            <div>
+                <span class="audit-action">${escapeHtml(log.action)}</span>
+                <span style="margin-left: 0.5rem; color: var(--text-primary); font-weight: 500;">
+                    ${escapeHtml(log.status || 'SUCCESS')}
+                </span>
+            </div>
+            <div class="audit-meta">
+                <span>IP: ${escapeHtml(log.ipAddress || 'Localhost')}</span> • 
+                <span>${new Date(log.createdAt || Date.now()).toLocaleString()}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderUnauthenticatedAuditNotice() {
+    if (!auditList) return;
+    auditList.innerHTML = `
+        <div style="text-align: center; padding: 1.5rem;">
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">🔒 Please Sign In or Register to view your account security audit logs.</p>
+            <button onclick="switchToAuthTab()" class="btn btn-primary" style="margin: 0 auto; display: inline-block;">Go to Sign In</button>
+        </div>
+    `;
+}
+
+// Developer Projects & Connection Strings Functions
+async function loadUserProjects() {
+    if (!accessToken) return;
+    try {
+        const response = await fetch(PROJECTS_API_URL, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        const result = await response.json();
+        if (response.ok && result.data) {
+            renderProjects(result.data);
+        }
+    } catch (error) {
+        console.error('Failed to load projects:', error);
+    }
+}
+
+async function handleCreateProject(e) {
+    e.preventDefault();
+    if (!accessToken) {
+        showToast('Please Sign In first to create AuthForge projects!', 'error');
+        switchToAuthTab();
+        return;
+    }
+
+    const name = document.getElementById('projectNameInput').value.trim();
+    const originsRaw = document.getElementById('projectOriginInput').value.trim();
+    const allowedOrigins = originsRaw ? originsRaw.split(',').map(s => s.trim()) : [];
+
+    try {
+        const response = await fetch(PROJECTS_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ name, allowedOrigins })
+        });
+
+        const result = await response.json();
+        displayResponse(result, response.ok);
+
+        if (response.ok) {
+            showToast('AuthForge Project created successfully!', 'success');
+            createProjectForm.reset();
+            loadUserProjects();
+        } else {
+            showToast(result.message || 'Project creation failed', 'error');
+        }
+    } catch (error) {
+        showToast('Error creating project', 'error');
+    }
+}
+
+function renderProjects(projects) {
+    if (!projectsList) return;
+
+    if (projects.length === 0) {
+        projectsList.innerHTML = `<p class="empty-state">No active projects found. Create your first project above to generate a Connection String!</p>`;
+        return;
+    }
+
+    projectsList.innerHTML = projects.map(p => `
+        <div class="project-item">
+            <div class="project-header">
+                <span class="project-title">
+                    ⚡ ${escapeHtml(p.name)}
+                    <span class="badge">Active</span>
+                </span>
+                <div>
+                    <button onclick="regenerateSecret('${p.projectId}')" class="btn-icon" title="Regenerate API Secret">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </button>
+                    <button onclick="deleteProject('${p.projectId}')" class="btn-icon" title="Delete project">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Connection String (Use in external apps):</label>
+            <div class="conn-box">
+                <span class="conn-text">${escapeHtml(p.connectionString)}</span>
+                <button class="btn-copy" onclick="copyText('${escapeHtml(p.connectionString)}')">Copy String</button>
+            </div>
+
+            <div class="keys-info">
+                <span><strong>Project ID:</strong> <code>${escapeHtml(p.projectId)}</code></span>
+                <span><strong>API Key:</strong> <code>${escapeHtml(p.apiKey)}</code></span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderUnauthenticatedProjectsNotice() {
+    if (!projectsList) return;
+    const demoConn = `authforge://af_pk_live_demo123:af_sk_live_demo456@proj_demo?host=${encodeURIComponent(getApiOrigin())}`;
+    projectsList.innerHTML = `
+        <div style="margin-bottom: 1rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 8px; border: 1px dashed var(--primary);">
+            <p style="font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.5rem;">💡 <strong>Sample Connection String Preview</strong> (Sign in to create your live project strings):</p>
+            <div class="conn-box">
+                <span class="conn-text">${escapeHtml(demoConn)}</span>
+                <button class="btn-copy" onclick="copyText('${escapeHtml(demoConn)}')">Copy Demo</button>
+            </div>
+        </div>
+        <p class="empty-state">🔒 Sign In or Register to create live project API keys & connection strings!</p>
+    `;
+}
+
+window.switchToAuthTab = function() {
+    const authTabBtn = document.querySelector('[data-tab="auth"]');
+    if (authTabBtn) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        authTabBtn.classList.add('active');
+        switchTab('auth');
+    }
+};
+
+window.regenerateSecret = async function(projectId) {
+    if (!confirm('Regenerating your API secret will invalidate previous connection strings for this project. Continue?')) return;
+    try {
+        const response = await fetch(`${PROJECTS_API_URL}/${projectId}/regenerate-secret`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        const result = await response.json();
+        displayResponse(result, response.ok);
+        if (response.ok) {
+            showToast('API Secret regenerated!', 'success');
+            loadUserProjects();
+        } else {
+            showToast(result.message || 'Regeneration failed', 'error');
+        }
+    } catch (err) {
+        showToast('Error regenerating secret', 'error');
+    }
+};
+
+window.deleteProject = async function(projectId) {
+    if (!confirm('Are you sure you want to delete this AuthForge project?')) return;
+    try {
+        const response = await fetch(`${PROJECTS_API_URL}/${projectId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        const result = await response.json();
+        displayResponse(result, response.ok);
+        if (response.ok) {
+            showToast('Project deleted', 'success');
+            loadUserProjects();
+        } else {
+            showToast(result.message || 'Delete failed', 'error');
+        }
+    } catch (err) {
+        showToast('Delete error', 'error');
+    }
+};
+
+// SDK Verification Tester Sandbox
+async function handleSdkTest(e) {
+    e.preventDefault();
+    const connStr = document.getElementById('sdkConnStrInput').value.trim();
+    const token = document.getElementById('sdkTokenInput').value.trim();
+
+    if (!connStr || !token) {
+        showToast('Connection string and Token are required', 'error');
+        return;
+    }
+
+    try {
+        // Parse connection string
+        const rawStr = connStr.replace("authforge://", "http://");
+        const parsed = new URL(rawStr);
+        const apiKey = decodeURIComponent(parsed.username);
+        const apiSecret = decodeURIComponent(parsed.password);
+        const projectId = parsed.searchParams.get("projectId") || parsed.hostname;
+        let host = parsed.searchParams.get("host") ? decodeURIComponent(parsed.searchParams.get("host")) : getApiOrigin();
+
+        const response = await fetch(`${host}/api/sdk/verify-token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-AuthForge-API-Key': apiKey,
+                'X-AuthForge-API-Secret': apiSecret,
+                'X-AuthForge-Project-ID': projectId
+            },
+            body: JSON.stringify({ token })
+        });
+
+        const result = await response.json();
+        displayResponse(result, response.ok);
+
+        if (response.ok && result.valid) {
+            showToast('✅ SDK Verification Passed! Token is valid.', 'success');
+        } else {
+            showToast(`❌ SDK Verification Response: ${result.message}`, 'error');
+        }
+    } catch (error) {
+        displayResponse({ error: error.message }, false);
+        showToast(`SDK Test Error: ${error.message}`, 'error');
+    }
+}
+
+window.copyText = function(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Connection string copied to clipboard!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy string', 'error');
+    });
+};
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // UI Updates
 function updateUIAuthenticated() {
-    userCard.style.display = 'block';
-    protectedActions.style.display = 'block';
-    authSection.style.display = 'none';
+    if (currentTab === 'auth') {
+        userCard.style.display = 'block';
+        protectedActions.style.display = 'block';
+        authSection.style.display = 'none';
+    }
     userStatus.classList.add('authenticated');
     userStatus.querySelector('span:last-child').textContent = 'Authenticated';
     
@@ -396,24 +784,24 @@ function updateUIAuthenticated() {
             ` : ''}
             <div class="user-info-item">
                 <span class="user-info-label">Name:</span>
-                <span class="user-info-value">${currentUser.name || 'N/A'}</span>
+                <span class="user-info-value">${escapeHtml(currentUser.name || 'N/A')}</span>
             </div>
             <div class="user-info-item">
                 <span class="user-info-label">Username:</span>
-                <span class="user-info-value">${currentUser.username || 'N/A'}</span>
+                <span class="user-info-value">${escapeHtml(currentUser.username || 'N/A')}</span>
             </div>
             <div class="user-info-item">
                 <span class="user-info-label">Email:</span>
-                <span class="user-info-value">${currentUser.email}</span>
+                <span class="user-info-value">${escapeHtml(currentUser.email)}</span>
             </div>
             <div class="user-info-item">
                 <span class="user-info-label">Role:</span>
-                <span class="user-info-value">${currentUser.role}</span>
+                <span class="user-info-value">${escapeHtml(currentUser.role)}</span>
             </div>
             ${currentUser.googleId ? `
             <div class="user-info-item">
                 <span class="user-info-label">Google ID:</span>
-                <span class="user-info-value">${currentUser.googleId}</span>
+                <span class="user-info-value">${escapeHtml(currentUser.googleId)}</span>
             </div>
             ` : ''}
             <div class="user-info-item">
@@ -421,15 +809,24 @@ function updateUIAuthenticated() {
                 <span class="user-info-value">${currentUser.isEmailVerified ? '✅ Yes' : '❌ No'}</span>
             </div>
         `;
+
+        setupSdkSandboxDefaults();
     }
+
+    if (currentTab === 'projects') loadUserProjects();
 }
 
 function updateUIUnauthenticated() {
     userCard.style.display = 'none';
     protectedActions.style.display = 'none';
-    authSection.style.display = 'grid';
+    if (currentTab === 'auth') {
+        authSection.style.display = 'grid';
+    }
     userStatus.classList.remove('authenticated');
     userStatus.querySelector('span:last-child').textContent = 'Not Authenticated';
+
+    if (currentTab === 'projects') renderUnauthenticatedProjectsNotice();
+    if (currentTab === 'audit') renderUnauthenticatedAuditNotice();
 }
 
 // Display Response
@@ -457,6 +854,7 @@ function showToast(message, type = 'success') {
 // Set Loading State
 function setLoading(form, isLoading) {
     const button = form.querySelector('button[type="submit"]');
+    if (!button) return;
     if (isLoading) {
         button.classList.add('loading');
         button.disabled = true;

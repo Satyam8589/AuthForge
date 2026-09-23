@@ -56,7 +56,9 @@ router.route('/google/callback').get(
 router.route("/logout").post(authMiddleware, logoutLimiter, logoutUserController);
 router.route("/logout-all").post(authMiddleware, logoutLimiter, logoutAllDevicesController);
 
-// Admin/Debug route
-router.route("/auditLog").post(authMiddleware, auditLogController);
+// Audit Log route (Fetch user logs or create log)
+router.route("/auditLog")
+    .get(authMiddleware, auditLogController)
+    .post(authMiddleware, auditLogController);
 
 export default router;

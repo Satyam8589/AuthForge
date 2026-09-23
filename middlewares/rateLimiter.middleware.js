@@ -2,15 +2,24 @@ import rateLimit from "express-rate-limit";
 import RedisStore from "rate-limit-redis";
 import redisClient from "../config/redis.js";
 
-const store = new RedisStore({
-    sendCommand: (...args) => redisClient.sendCommand(args),
-});
+const shouldSkip = () => process.env.SKIP_RATE_LIMIT === "true";
+
+const getStore = (prefix) => {
+    if (redisClient && redisClient.isOpen) {
+        return new RedisStore({
+            sendCommand: (...args) => redisClient.sendCommand(args),
+            prefix: `rl:${prefix}:`
+        });
+    }
+    return undefined; // fallback to default MemoryStore
+};
 
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
+    skip: shouldSkip,
     message: "Too many requests from this IP, please try again after 15 minutes",
-    store: store,
+    store: getStore("general"),
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
@@ -24,8 +33,9 @@ export const generalLimiter = rateLimit({
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 5,
+    skip: shouldSkip,
     message: "Too many authentication attempts, please try again after 15 minutes",
-    store: store,
+    store: getStore("auth"),
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests: true,
@@ -40,8 +50,9 @@ export const authLimiter = rateLimit({
 export const loginLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
+    skip: shouldSkip,
     message: "Too many login attempts, please try again after an hour",
-    store: store,
+    store: getStore("login"),
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests: true,
@@ -56,8 +67,9 @@ export const loginLimiter = rateLimit({
 export const registerLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 3,
+    skip: shouldSkip,
     message: "Too many registration attempts, please try again after an hour",
-    store: store,
+    store: getStore("register"),
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
@@ -71,8 +83,9 @@ export const registerLimiter = rateLimit({
 export const logoutLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20,
+    skip: shouldSkip,
     message: "Too many logout requests, please try again later",
-    store: store,
+    store: getStore("logout"),
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
@@ -82,4 +95,3 @@ export const logoutLimiter = rateLimit({
         });
     }
 });
-

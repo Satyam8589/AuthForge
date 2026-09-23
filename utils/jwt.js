@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import jwtConfig from "../config/jwt.js";
 
+import crypto from "crypto";
+
 export const generateAccessToken = (payload) => {
     try {
         const token = jwt.sign(
@@ -19,8 +21,12 @@ export const generateAccessToken = (payload) => {
 
 export const generateRefreshToken = (payload) => {
     try {
+        const tokenPayload = {
+            ...payload,
+            jti: crypto.randomUUID()
+        };
         const token = jwt.sign(
-            payload,
+            tokenPayload,
             jwtConfig.refresh.secret,
             { 
                 expiresIn: jwtConfig.refresh.expiresIn,

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AuthForge - Authentication Testing Dashboard</title>
+    <title>AuthForge - Enterprise Authentication & Integration Portal</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -38,12 +38,20 @@
             </div>
         </header>
 
+        <!-- Feature Navigation Tabs -->
+        <nav class="nav-tabs" id="navTabs">
+            <button class="tab-btn active" data-tab="auth">🔐 Auth & Sign In</button>
+            <button class="tab-btn" data-tab="projects">🔌 Developer Connection Strings</button>
+            <button class="tab-btn" data-tab="sandbox">🧪 Live SDK Tester</button>
+            <button class="tab-btn" data-tab="audit">📜 Security Audit Logs</button>
+        </nav>
+
         <div class="dashboard">
             <!-- User Info Card -->
             <div class="card user-card" id="userCard" style="display: none;">
                 <div class="card-header">
                     <h3>👤 User Profile</h3>
-                    <button id="logoutBtn" class="btn-icon">
+                    <button id="logoutBtn" class="btn-icon" title="Logout">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
                         </svg>
@@ -143,7 +151,7 @@
             <!-- Protected Actions -->
             <div class="card" id="protectedActions" style="display: none;">
                 <div class="card-header">
-                    <h3>🛡️ Protected Actions</h3>
+                    <h3>🛡️ Protected User Actions</h3>
                 </div>
                 <div class="actions-grid">
                     <button id="refreshTokenBtn" class="btn btn-secondary">
@@ -152,6 +160,16 @@
                                 d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                         </svg>
                         <span>Refresh Token</span>
+                    </button>
+                    <button id="fetchAuditBtn" class="btn btn-secondary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        <span>View Audit Logs</span>
                     </button>
                     <button id="logoutAllBtn" class="btn btn-secondary">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -164,11 +182,76 @@
                 </div>
             </div>
 
+            <!-- Developer Projects & Connection Strings -->
+            <div class="card projects-card" id="projectsCard" style="display: none;">
+                <div class="card-header">
+                    <h3>🔌 Developer Projects & Connection Strings</h3>
+                    <button id="refreshProjectsBtn" class="btn-icon" title="Refresh projects">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path
+                                d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="create-project-box">
+                    <h4>Create New AuthForge Project</h4>
+                    <form id="createProjectForm" class="form-row">
+                        <input type="text" id="projectNameInput" placeholder="App Name (e.g. My Next.js Shop)" required
+                            class="form-input">
+                        <input type="text" id="projectOriginInput"
+                            placeholder="Allowed Origins (e.g. http://localhost:3000)" class="form-input">
+                        <button type="submit" class="btn btn-primary">Create Project</button>
+                    </form>
+                </div>
+
+                <div class="projects-list" id="projectsList">
+                    <p class="empty-state">No projects created yet. Create one above to get your Connection String!</p>
+                </div>
+            </div>
+
+            <!-- SDK Live Connection String Verification Sandbox -->
+            <div class="card sandbox-card" id="sandboxCard" style="display: none;">
+                <div class="card-header">
+                    <h3>🧪 Live Connection String & SDK Tester Sandbox</h3>
+                </div>
+                <p class="oauth-description" style="margin-bottom: 1rem;">Test how an external app uses your AuthForge connection string to verify access tokens live!</p>
+                <form id="sdkTestForm" class="form">
+                    <div class="form-group">
+                        <label>Connection String (authforge://...)</label>
+                        <input type="text" id="sdkConnStrInput" placeholder="Paste authforge://... connection string" required>
+                    </div>
+                    <div class="form-group">
+                        <label>User Access Token</label>
+                        <input type="text" id="sdkTokenInput" placeholder="Paste user access JWT token to verify" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary">
+                        <span>Verify Token via SDK</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Audit Log Viewer Card -->
+            <div class="card audit-card" id="auditCard" style="display: none;">
+                <div class="card-header">
+                    <h3>📜 User Security & Audit Logs</h3>
+                    <button id="closeAuditBtn" class="btn-icon" title="Hide audit logs">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="audit-list" id="auditList">
+                    <p class="empty-state">Click "View Audit Logs" under Protected Actions to load security logs.</p>
+                </div>
+            </div>
+
             <!-- Response Display -->
             <div class="card response-card">
                 <div class="card-header">
-                    <h3>📡 API Response</h3>
-                    <button id="clearResponseBtn" class="btn-icon">
+                    <h3>📡 API Response Output</h3>
+                    <button id="clearResponseBtn" class="btn-icon" title="Clear response window">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <line x1="18" y1="6" x2="6" y2="18" />
                             <line x1="6" y1="6" x2="18" y2="18" />

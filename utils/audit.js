@@ -8,6 +8,11 @@ export const logAuditEvent = async ({ userId, action, req, details = {} }) => {
             return false;
         }
 
+        if (!action) {
+            console.warn('Audit log skipped: action is required');
+            return false;
+        }
+
         const { ipAddress, userAgent } = getClientInfo(req);
 
         await AuditLog.create({
@@ -23,6 +28,13 @@ export const logAuditEvent = async ({ userId, action, req, details = {} }) => {
         console.error('Audit log error:', error);
         return false;
     }
+};
+
+export const getAuditLogs = async (userId, limit = 10) => {
+    if (!userId) return [];
+    return await AuditLog.find({ userId })
+        .sort({ createdAt: -1 })
+        .limit(Number(limit));
 };
 
 export const logRegistration = async (userId, req, user) => {
