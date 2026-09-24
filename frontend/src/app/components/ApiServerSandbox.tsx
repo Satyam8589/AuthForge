@@ -53,61 +53,90 @@ export default function ApiServerSandbox() {
             {apiTestMode === "sdkLogin" && "POST /api/sdk/auth/login"}
             {apiTestMode === "verifyToken" && "POST /api/sdk/verify-token"}
             {apiTestMode === "sdkInfo" && "GET /api/sdk/info"}
+            {apiTestMode === "forgotPassword" && "POST /api/auth/forgot-password"}
+            {apiTestMode === "resetPassword" && "POST /api/auth/reset-password"}
             {apiTestMode === "googleOAuth" && "GET /api/auth/google"}
             {apiTestMode === "login" && "POST /api/auth/login"}
             {apiTestMode === "register" && "POST /api/auth/register"}
-            {apiTestMode === "forgotPassword" && "POST /api/auth/forgot-password"}
-            {apiTestMode === "resetPassword" && "POST /api/auth/reset-password"}
           </span>
         </div>
 
         {/* Endpoint Selector Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-[11px] font-medium">
-          <button
-            type="button"
-            onClick={() => setApiTestMode("sdkRegister")}
-            className={`py-1.5 px-2 rounded-lg transition-all text-center ${
-              apiTestMode === "sdkRegister" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            SDK Register
-          </button>
-          <button
-            type="button"
-            onClick={() => setApiTestMode("sdkLogin")}
-            className={`py-1.5 px-2 rounded-lg transition-all text-center ${
-              apiTestMode === "sdkLogin" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            SDK Login
-          </button>
-          <button
-            type="button"
-            onClick={() => setApiTestMode("verifyToken")}
-            className={`py-1.5 px-2 rounded-lg transition-all text-center ${
-              apiTestMode === "verifyToken" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Verify Token
-          </button>
-          <button
-            type="button"
-            onClick={() => setApiTestMode("sdkInfo")}
-            className={`py-1.5 px-2 rounded-lg transition-all text-center ${
-              apiTestMode === "sdkInfo" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            SDK Info
-          </button>
-          <button
-            type="button"
-            onClick={() => setApiTestMode("googleOAuth")}
-            className={`py-1.5 px-2 rounded-lg transition-all text-center col-span-2 sm:col-span-1 ${
-              apiTestMode === "googleOAuth" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Google OAuth
-          </button>
+        <div className="space-y-2">
+          <div>
+            <div className="text-[10px] uppercase font-mono font-semibold text-slate-400 tracking-wider mb-1">SDK Application Routes</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-[11px] font-medium">
+              <button
+                type="button"
+                onClick={() => setApiTestMode("sdkRegister")}
+                className={`py-1.5 px-2 rounded-lg transition-all text-center ${
+                  apiTestMode === "sdkRegister" ? "bg-indigo-600 text-white font-semibold shadow-sm" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                SDK Register
+              </button>
+              <button
+                type="button"
+                onClick={() => setApiTestMode("sdkLogin")}
+                className={`py-1.5 px-2 rounded-lg transition-all text-center ${
+                  apiTestMode === "sdkLogin" ? "bg-indigo-600 text-white font-semibold shadow-sm" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                SDK Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setApiTestMode("verifyToken")}
+                className={`py-1.5 px-2 rounded-lg transition-all text-center ${
+                  apiTestMode === "verifyToken" ? "bg-indigo-600 text-white font-semibold shadow-sm" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Verify Token
+              </button>
+              <button
+                type="button"
+                onClick={() => setApiTestMode("sdkInfo")}
+                className={`py-1.5 px-2 rounded-lg transition-all text-center ${
+                  apiTestMode === "sdkInfo" ? "bg-indigo-600 text-white font-semibold shadow-sm" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                SDK Info
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] uppercase font-mono font-semibold text-slate-400 tracking-wider mb-1">Password & Security</div>
+            <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-[11px] font-medium">
+              <button
+                type="button"
+                onClick={() => setApiTestMode("forgotPassword")}
+                className={`py-1.5 px-2 rounded-lg transition-all text-center ${
+                  apiTestMode === "forgotPassword" ? "bg-indigo-600 text-white font-semibold shadow-sm" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Forgot Pass
+              </button>
+              <button
+                type="button"
+                onClick={() => setApiTestMode("resetPassword")}
+                className={`py-1.5 px-2 rounded-lg transition-all text-center ${
+                  apiTestMode === "resetPassword" ? "bg-indigo-600 text-white font-semibold shadow-sm" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Reset Pass
+              </button>
+              <button
+                type="button"
+                onClick={() => setApiTestMode("googleOAuth")}
+                className={`py-1.5 px-2 rounded-lg transition-all text-center ${
+                  apiTestMode === "googleOAuth" ? "bg-indigo-600 text-white font-semibold shadow-sm" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Google OAuth
+              </button>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleTestApi} className="space-y-3">
@@ -158,6 +187,31 @@ export default function ApiServerSandbox() {
             </div>
           )}
 
+          {apiTestMode === "resetPassword" && (
+            <>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-400 mb-1">Password Reset Token</label>
+                <input
+                  type="text"
+                  placeholder="Paste reset token here..."
+                  value={testResetToken}
+                  onChange={(e) => setTestResetToken(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-400 mb-1">New Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter new password..."
+                  value={testNewPassword}
+                  onChange={(e) => setTestNewPassword(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </>
+          )}
+
           {apiTestMode === "verifyToken" && (
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-1">Access Token to Verify</label>
@@ -200,11 +254,11 @@ export default function ApiServerSandbox() {
               {apiTestMode === "sdkLogin" && `Login End-User for ${selectedProject?.name || "Project"}`}
               {apiTestMode === "verifyToken" && "Verify Access Token"}
               {apiTestMode === "sdkInfo" && "Fetch SDK Project Metadata"}
+              {apiTestMode === "forgotPassword" && "Execute Forgot Password API"}
+              {apiTestMode === "resetPassword" && "Execute Reset Password API"}
               {apiTestMode === "googleOAuth" && "Launch Google OAuth Popup"}
               {apiTestMode === "login" && "Execute Portal Login"}
               {apiTestMode === "register" && "Execute Portal Register"}
-              {apiTestMode === "forgotPassword" && "Execute Forgot Password"}
-              {apiTestMode === "resetPassword" && "Execute Reset Password"}
             </span>
           </button>
         </form>
