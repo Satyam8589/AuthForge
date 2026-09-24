@@ -514,11 +514,17 @@ export const requestPasswordReset = async (email, req) => {
             throw error;
         }
 
-        const targetProjectId = req?.project?.projectId || "default";
-        const user = await User.findOne({ email, projectId: targetProjectId });
+        // If req is from SDK middleware, scope query to req.project.projectId; otherwise match user email across any project
+        const query = { email };
+        if (req?.project?.projectId) {
+            query.projectId = req.project.projectId;
+        }
+
+        const user = await User.findOne(query);
 
         // Security best practice: Prevent email enumeration
         if (!user) {
+            console.warn(`[PASSWORD RESET] No user found matching email: ${email}`);
             return {
                 success: true,
                 message: "If an account with that email exists, password reset instructions have been sent."
@@ -530,19 +536,20 @@ export const requestPasswordReset = async (email, req) => {
             email: user.email
         });
 
-        await sendPasswordResetEmail(user.email, resetToken, req);
+        const emailResult = await sendPasswordResetEmail(user.email, resetToken, req);
 
         await logAuditEvent({
             userId: user._id,
             action: 'PASSWORD_RESET',
             req,
-            details: { email: user.email, stage: 'requested' }
+            details: { email: user.email, stage: 'requested', emailMode: emailResult?.mode }
         });
 
         return {
             success: true,
-            message: "If an account with that email exists, password reset instructions have been sent.",
-            resetToken // Included for convenience in development/testing
+            message: "Password reset instructions have been sent to your email.",
+            resetToken,
+            emailResult
         };
     } catch (error) {
         throw error;

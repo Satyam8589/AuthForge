@@ -5,14 +5,12 @@ import jwtConfig from "../config/jwt.js";
  * Get configured Nodemailer transport or null if SMTP credentials are not set
  */
 const getTransporter = () => {
-    const rawUser = process.env.EMAIL_USER || process.env.SMTP_USER || '';
-    const rawPass = process.env.EMAIL_PASS || process.env.SMTP_PASS || '';
-
-    const user = rawUser.trim();
-    // For Gmail app passwords, remove spaces if present
-    const pass = rawPass.trim().replace(/\s+/g, '');
+    const user = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
+    const rawPass = (process.env.EMAIL_PASS || process.env.SMTP_PASS || '').trim();
+    const pass = rawPass.replace(/\s+/g, '');
 
     if (!user || !pass) {
+        console.warn("⚠️ [AUTHFORGE EMAIL SERVICE] EMAIL_USER or EMAIL_PASS is missing in environment variables.");
         return null;
     }
 
@@ -25,9 +23,9 @@ const getTransporter = () => {
         });
     }
 
-    // Default to Gmail or service transport
+    // Standard Nodemailer Gmail Transport
     return nodemailer.createTransport({
-        service: process.env.EMAIL_SERVICE || 'gmail',
+        service: 'gmail',
         auth: { user, pass }
     });
 };
@@ -40,15 +38,14 @@ const getTransporter = () => {
  */
 export const sendPasswordResetEmail = async (email, resetToken, req) => {
     try {
-        const protocol = req ? (req.headers['x-forwarded-proto'] || req.protocol) : 'http';
-        const host = req ? req.get('host') : 'localhost:5000';
-        const resetUrl = `${protocol}://${host}/?resetToken=${encodeURIComponent(resetToken)}`;
+        const clientBase = (process.env.CLIENT_URL || (req ? `${req.protocol}://${req.get('host')}` : 'http://localhost:3000')).replace(/\/$/, '');
+        const resetUrl = `${clientBase}/?resetToken=${encodeURIComponent(resetToken)}`;
 
         const transporter = getTransporter();
 
         if (transporter) {
-            // Real Email Sending via Nodemailer
-            const from = process.env.EMAIL_FROM || `"AuthForge Security" <${process.env.EMAIL_USER || process.env.SMTP_USER}>`;
+            const senderUser = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
+            const from = process.env.EMAIL_FROM || `"AuthForge Security" <${senderUser}>`;
 
             const mailOptions = {
                 from,
@@ -88,30 +85,17 @@ export const sendPasswordResetEmail = async (email, resetToken, req) => {
                 `
             };
 
-            await transporter.sendMail(mailOptions);
-
-            console.log(`\n✅ [AUTHFORGE EMAIL SERVICE] Real email sent to: ${email}`);
+            const info = await transporter.sendMail(mailOptions);
+            console.log(`✅ [AUTHFORGE EMAIL SERVICE] Reset email sent to ${email}: ${info.messageId}`);
             return {
                 sent: true,
                 mode: 'smtp',
                 email,
+                messageId: info.messageId,
                 message: "Password reset instructions sent to recipient inbox"
             };
         } else {
-            // Development fallback mode when EMAIL_USER/EMAIL_PASS are not configured in .env
-            console.log('\n======================================================');
-            console.log('📧 [AUTHFORGE EMAIL SERVICE] PASSWORD RESET EMAIL');
-            console.log('======================================================');
-            console.log(`To:          ${email}`);
-            console.log(`Subject:     AuthForge - Password Reset Request`);
-            console.log(`Reset Token: ${resetToken}`);
-            console.log(`Reset Link:  ${resetUrl}`);
-            console.log(`Expires In:  ${jwtConfig.passwordReset.expiresIn}`);
-            console.log('------------------------------------------------------');
-            console.log('ℹ️  SMTP NOTICE: To send actual emails to users\' inbox,');
-            console.log('   add EMAIL_USER and EMAIL_PASS to your .env file.');
-            console.log('======================================================\n');
-
+            console.log('📧 [AUTHFORGE EMAIL SERVICE] Dev fallback mode: Reset URL is:', resetUrl);
             return {
                 sent: true,
                 mode: 'console_dev',
@@ -122,7 +106,7 @@ export const sendPasswordResetEmail = async (email, resetToken, req) => {
             };
         }
     } catch (error) {
-        console.error('Failed to send password reset email:', error);
+        console.error('❌ Failed to send password reset email:', error);
         throw new Error(`Failed to send password reset email: ${error.message}`);
     }
 };

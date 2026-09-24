@@ -319,7 +319,8 @@ export const forgotPasswordController = async (req, res) => {
         res.status(200).json({
             success: true,
             message: result.message,
-            ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' ? { resetToken: result.resetToken } : {})
+            resetToken: result.resetToken,
+            emailResult: result.emailResult
         });
     } catch (error) {
         const statusCode = error.statusCode || 500;
