@@ -547,6 +547,8 @@ body {
     font-family: var(--font-mono);
     color: var(--text-accent);
     font-weight: 400;
+}
+
 .label-row {
     display: flex;
     justify-content: space-between;
@@ -597,7 +599,7 @@ body {
 .form-input,
 .form-group input {
     width: 100%;
-    padding: 0.8rem 1rem 0.8rem 2.65rem;
+    padding: 0.8rem 2.5rem 0.8rem 2.65rem;
     background: var(--bg-input);
     border: 1px solid var(--border-card);
     border-radius: var(--radius-md);
@@ -606,6 +608,23 @@ body {
     font-size: 0.92rem;
     transition: var(--transition-base);
     outline: none;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    right: 0.85rem;
+    background: none;
+    border: none;
+    font-size: 0.95rem;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    z-index: 3;
+    padding: 0.2rem;
+}
+
+.toggle-password-btn:hover {
+    opacity: 1;
 }
 
 .form-group input:not(.input-wrap input) {
@@ -1337,3 +1356,61 @@ body {
         align-items: flex-start;
     }
 }
+
+/* Extra Aesthetic Polish & Highlight Rules */
+.feature-pills-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.meta-tag {
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.65rem;
+    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.meta-tag .tag-icon {
+    font-size: 0.82rem;
+}
+
+.glow-card {
+    border-color: rgba(99, 102, 241, 0.22);
+}
+
+.highlight-card {
+    border-color: rgba(236, 72, 153, 0.35);
+    background: linear-gradient(145deg, rgba(17, 24, 39, 0.8), rgba(30, 27, 75, 0.5));
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.footer-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.footer-badge {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-md);
+}
+

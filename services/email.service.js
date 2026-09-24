@@ -1,18 +1,11 @@
 import jwtConfig from "../config/jwt.js";
 
-/**
- * Send password reset email to user
- * @param {string} email - Recipient email address
- * @param {string} resetToken - JWT reset token
- * @param {object} [req] - Express request object for deriving base URL
- */
 export const sendPasswordResetEmail = async (email, resetToken, req) => {
     try {
         const protocol = req ? (req.headers['x-forwarded-proto'] || req.protocol) : 'http';
         const host = req ? req.get('host') : 'localhost:3000';
         const resetUrl = `${protocol}://${host}/?resetToken=${encodeURIComponent(resetToken)}`;
 
-        // Log the reset email details clearly for development / testing environments
         console.log('\n======================================================');
         console.log('📧 [AUTHFORGE EMAIL SERVICE] PASSWORD RESET EMAIL');
         console.log('======================================================');

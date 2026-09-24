@@ -175,6 +175,18 @@ function setupEventListeners() {
     if (resetPasswordForm) {
         resetPasswordForm.addEventListener('submit', handleResetPassword);
     }
+
+    // Toggle Password Visibility Handler
+    document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.parentElement.querySelector('input');
+            if (input) {
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                btn.textContent = isPassword ? '🙈' : '👁️';
+            }
+        });
+    });
     
     if (googleRegisterBtn) {
         googleRegisterBtn.addEventListener('click', () => signInWithGoogle('register'));
