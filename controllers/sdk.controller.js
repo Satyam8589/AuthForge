@@ -1,6 +1,6 @@
 import { verifyAccessToken } from "../utils/jwt.js";
 import { getUserByIdService } from "../services/user.service.js";
-import { registerUser, loginUser } from "../services/auth.service.js";
+import { registerUser, loginUser, registerUserByGoogle } from "../services/auth.service.js";
 
 export const verifyTokenController = async (req, res) => {
     try {
@@ -84,3 +84,31 @@ export const sdkLoginController = async (req, res) => {
         });
     }
 };
+
+export const sdkGoogleAuthController = async (req, res) => {
+    try {
+        const { email, name, googleId, picture } = req.body;
+        if (!email || !googleId) {
+            return res.status(400).json({
+                success: false,
+                message: "Email and Google ID are required"
+            });
+        }
+
+        const result = await registerUserByGoogle({ email, name, googleId, picture }, req);
+        res.status(200).json({
+            success: true,
+            message: result.isNewUser 
+                ? "User registered successfully via Google (AuthForge SDK)" 
+                : "Login successful via Google (AuthForge SDK)",
+            data: result
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+

@@ -106,4 +106,27 @@ describe("SDK & Connection String Integration Tests", () => {
         expect(res.body.success).toBe(false);
         expect(res.body.message).toContain("Authentication failed");
     });
+
+    test("POST /api/sdk/auth/google should register/login user via Google OAuth data", async () => {
+        const googleUserData = {
+            email: "googlesdkuser@example.com",
+            googleId: "google-123456789",
+            name: "Google SDK User",
+            picture: "https://lh3.googleusercontent.com/a/sample"
+        };
+
+        const res = await request(app)
+            .post("/api/sdk/auth/google")
+            .set("X-AuthForge-API-Key", project.apiKey)
+            .set("X-AuthForge-API-Secret", project.apiSecret)
+            .set("X-AuthForge-Project-ID", project.projectId)
+            .send(googleUserData);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data.accessToken).toBeDefined();
+        expect(res.body.data.user.email).toBe("googlesdkuser@example.com");
+        expect(res.body.data.user.googleId).toBe("google-123456789");
+    });
 });
+

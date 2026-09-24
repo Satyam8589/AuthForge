@@ -144,6 +144,23 @@ export class AuthForgeClient {
         );
         return response.data;
     }
+
+    /**
+     * Authenticates or registers a user via Google Auth under this project.
+     * @param {object} googleUserData - { email, googleId, name, picture }
+     */
+    async loginWithGoogle(googleUserData) {
+        if (!googleUserData || typeof googleUserData !== "object") {
+            throw new Error("Google user data object is required");
+        }
+        const response = await axios.post(
+            `${this.config.host}/api/sdk/auth/google`,
+            googleUserData,
+            { headers: this.getHeaders() }
+        );
+        return response.data;
+    }
 }
 
 export default AuthForgeClient;
+

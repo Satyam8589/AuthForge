@@ -139,7 +139,16 @@ const verification = await auth.verifyToken(userToken);
 if (verification.valid) {
     console.log("Valid user:", verification.data.user);
 }
+
+// Authenticate / Register user with Google Auth
+const googleAuthResult = await auth.loginWithGoogle({
+    email: "user@example.com",
+    googleId: "google-user-id",
+    name: "User Name",
+    picture: "https://lh3.googleusercontent.com/..."
+});
 ```
+
 
 ---
 

@@ -3,7 +3,8 @@ import {
     verifyTokenController,
     getProjectPublicInfoController,
     sdkRegisterController,
-    sdkLoginController
+    sdkLoginController,
+    sdkGoogleAuthController
 } from "../controllers/sdk.controller.js";
 import { sdkAuthMiddleware } from "../middlewares/sdkAuth.middleware.js";
 
@@ -15,5 +16,7 @@ router.post("/verify-token", verifyTokenController);
 router.get("/info", getProjectPublicInfoController);
 router.post("/auth/register", sdkRegisterController);
 router.post("/auth/login", sdkLoginController);
+router.post("/auth/google", sdkGoogleAuthController);
 
 export default router;
+
