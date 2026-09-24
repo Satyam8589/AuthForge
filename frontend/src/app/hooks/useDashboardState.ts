@@ -123,7 +123,11 @@ export function useDashboardState() {
       if (res.ok && data.success && Array.isArray(data.data)) {
         if (data.data.length > 0) {
           setProjects(data.data);
-          setSelectedProject(data.data[0]);
+          const savedProjectId = localStorage.getItem("af_selected_project_id");
+          const matched = data.data.find((p: Project) => p.projectId === savedProjectId);
+          const activeProj = matched || data.data[0];
+          setSelectedProject(activeProj);
+          fetchProjectUsers(activeProj.projectId, token);
         } else {
           autoCreateDefaultProject(token);
         }
@@ -148,6 +152,8 @@ export function useDashboardState() {
       if (res.ok && data.success && data.data) {
         setProjects([data.data]);
         setSelectedProject(data.data);
+        localStorage.setItem("af_selected_project_id", data.data.projectId);
+        fetchProjectUsers(data.data.projectId, token);
       }
     } catch (err) {
       console.error("Auto-create default project error:", err);
@@ -197,12 +203,12 @@ export function useDashboardState() {
     }
   };
 
-  // Auto-fetch users whenever selected project changes
+  // Auto-fetch users whenever selected project or token changes
   useEffect(() => {
     if (selectedProject?.projectId && developerToken) {
       fetchProjectUsers(selectedProject.projectId, developerToken);
     }
-  }, [selectedProject?.projectId, developerToken]);
+  }, [selectedProject?.projectId, selectedProject?.apiKey, developerToken]);
 
   // Handle Developer Register / Login
   const handleDeveloperAuth = async (e: React.FormEvent) => {
@@ -497,6 +503,9 @@ export function useDashboardState() {
       }
       if ((apiTestMode === "sdkLogin" || apiTestMode === "sdkRegister") && data.data?.accessToken) {
         setSdkTokenToVerify(data.data.accessToken);
+      }
+      if (res.ok && data.success && (apiTestMode === "sdkRegister" || apiTestMode === "register")) {
+        fetchProjectUsers();
       }
     } catch (err: any) {
       setApiResponse(
