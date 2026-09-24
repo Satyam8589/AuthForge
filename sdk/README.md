@@ -112,6 +112,16 @@ const googleRes = await authForge.loginWithGoogle({
 });
 ```
 
+### 6. Password Reset Flow
+
+```javascript
+// Request Password Reset Link via Email
+const forgotRes = await authForge.forgotPassword('user@example.com');
+
+// Reset Password using token from Email
+const resetRes = await authForge.resetPassword(resetToken, 'NewPassword123!');
+```
+
 ---
 
 ## API Reference
@@ -134,6 +144,12 @@ const googleRes = await authForge.loginWithGoogle({
 
 ### `authForge.loginWithGoogle(googleUserData)`
 - Authenticates or auto-registers user via Google credentials.
+
+### `authForge.forgotPassword(email)`
+- Sends password reset email for an account.
+
+### `authForge.resetPassword(token, newPassword)`
+- Updates password using valid reset token.
 
 ---
 

@@ -171,6 +171,35 @@ export class AuthForgeClient {
         );
         return response.data;
     }
+
+    /**
+     * Triggers a password reset email for a user under this project.
+     * @param {string} email 
+     */
+    async forgotPassword(email) {
+        if (!email) throw new Error("Email is required for password reset");
+        const response = await axios.post(
+            `${this.config.host}/api/auth/forgot-password`,
+            { email },
+            { headers: this.getHeaders() }
+        );
+        return response.data;
+    }
+
+    /**
+     * Resets a user password using a valid reset token.
+     * @param {string} token 
+     * @param {string} newPassword 
+     */
+    async resetPassword(token, newPassword) {
+        if (!token || !newPassword) throw new Error("Reset token and new password are required");
+        const response = await axios.post(
+            `${this.config.host}/api/auth/reset-password`,
+            { token, newPassword },
+            { headers: this.getHeaders() }
+        );
+        return response.data;
+    }
 }
 
 export default AuthForgeClient;

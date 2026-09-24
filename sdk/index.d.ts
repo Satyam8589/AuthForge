@@ -52,6 +52,10 @@ export class AuthForgeClient {
     register(userData: RegisterUserData): Promise<any>;
 
     loginWithGoogle(googleUserData: GoogleUserData): Promise<any>;
+
+    forgotPassword(email: string): Promise<any>;
+
+    resetPassword(token: string, newPassword: string): Promise<any>;
 }
 
 export default AuthForgeClient;

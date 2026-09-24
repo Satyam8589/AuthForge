@@ -1,6 +1,6 @@
 {
   "name": "authforge-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official Node.js & JavaScript SDK for AuthForge authentication system",
   "type": "module",
   "main": "./index.cjs",
