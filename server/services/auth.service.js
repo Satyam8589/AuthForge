@@ -48,13 +48,16 @@ export const registerUser = async (userData, req) => {
             throw error;
         }
 
+        const targetProjectId = req?.project?.projectId || "default";
+
         const existingUser = await User.findOne({ 
+            projectId: targetProjectId,
             $or: [{ email }, { username }] 
         });
         
         if (existingUser) {
             const field = existingUser.email === email ? "Email" : "Username";
-            const error = new Error(`${field} already exists`);
+            const error = new Error(`${field} already exists in this project`);
             error.statusCode = 409;
             throw error;
         }
@@ -65,7 +68,8 @@ export const registerUser = async (userData, req) => {
             name, 
             username, 
             email, 
-            password: hashedPassword
+            password: hashedPassword,
+            projectId: targetProjectId
         });
 
         if (!user) {
@@ -105,7 +109,8 @@ export const loginUser = async (userData, req) => {
             throw error;
         }
         
-        const user = await User.findOne({ email }).select("+password");
+        const targetProjectId = req?.project?.projectId || "default";
+        const user = await User.findOne({ email, projectId: targetProjectId }).select("+password");
         
         if (!user) {
             await logLoginFailed(null, req, email, 'User not found');
@@ -138,7 +143,8 @@ export const loginUser = async (userData, req) => {
         const accessToken = generateAccessToken({ 
             userId: user._id,
             email: user.email,
-            role: user.role
+            role: user.role,
+            projectId: user.projectId
         });
         
         const refreshToken = generateRefreshToken({ 
@@ -302,8 +308,11 @@ export const registerUserByGoogle = async (userData, req) => {
             error.statusCode = 400;
             throw error;
         }
+
+        const targetProjectId = req?.project?.projectId || "default";
         
         const existingUser = await User.findOne({ 
+            projectId: targetProjectId,
             $or: [{ email }, { googleId }] 
         });
         
@@ -311,7 +320,8 @@ export const registerUserByGoogle = async (userData, req) => {
             const accessToken = generateAccessToken({ 
                 userId: existingUser._id,
                 email: existingUser.email,
-                role: existingUser.role
+                role: existingUser.role,
+                projectId: existingUser.projectId
             });
             
             const refreshToken = generateRefreshToken({ 
@@ -352,13 +362,13 @@ export const registerUserByGoogle = async (userData, req) => {
             username = username.substring(0, 20);
         }
         
-        let usernameExists = await User.findOne({ username });
+        let usernameExists = await User.findOne({ username, projectId: targetProjectId });
         let counter = 1;
         while (usernameExists) {
             const suffix = counter.toString();
             const baseUsername = username.substring(0, 20 - suffix.length);
             username = `${baseUsername}${suffix}`;
-            usernameExists = await User.findOne({ username });
+            usernameExists = await User.findOne({ username, projectId: targetProjectId });
             counter++;
         }
         
@@ -375,7 +385,8 @@ export const registerUserByGoogle = async (userData, req) => {
             googleId,
             picture,
             role: 'USER',
-            isEmailVerified: true
+            isEmailVerified: true,
+            projectId: targetProjectId
         });
         
         if (!newUser) {
@@ -389,7 +400,8 @@ export const registerUserByGoogle = async (userData, req) => {
         const accessToken = generateAccessToken({ 
             userId: newUser._id,
             email: newUser.email,
-            role: newUser.role
+            role: newUser.role,
+            projectId: newUser.projectId
         });
         
         const refreshToken = generateRefreshToken({ 
@@ -433,7 +445,10 @@ export const loginUserByGoogle = async (userData, req) => {
             throw error;
         }
         
+        const targetProjectId = req?.project?.projectId || "default";
+        
         const existingUser = await User.findOne({ 
+            projectId: targetProjectId,
             $or: [{ email }, { googleId }] 
         });
         
@@ -446,7 +461,8 @@ export const loginUserByGoogle = async (userData, req) => {
         const accessToken = generateAccessToken({ 
             userId: existingUser._id,
             email: existingUser.email,
-            role: existingUser.role
+            role: existingUser.role,
+            projectId: existingUser.projectId
         });
         
         const refreshToken = generateRefreshToken({ 
@@ -498,7 +514,8 @@ export const requestPasswordReset = async (email, req) => {
             throw error;
         }
 
-        const user = await User.findOne({ email });
+        const targetProjectId = req?.project?.projectId || "default";
+        const user = await User.findOne({ email, projectId: targetProjectId });
 
         // Security best practice: Prevent email enumeration
         if (!user) {

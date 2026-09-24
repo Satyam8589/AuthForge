@@ -1,4 +1,5 @@
 import Project from "../models/Project.model.js";
+import User from "../models/User.model.js";
 import crypto from "crypto";
 
 export const createProjectService = async (ownerId, { name, allowedOrigins }, baseUrl) => {
@@ -82,4 +83,22 @@ export const deleteProjectService = async (projectId, ownerId) => {
     }
 
     return { message: "Project deleted successfully", projectId };
+};
+
+export const getProjectUsersService = async (projectId, ownerId) => {
+    const project = await Project.findOne({ projectId, ownerId });
+    if (!project) {
+        const error = new Error("Project not found or unauthorized access");
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const users = await User.find({ projectId }).select("-password -__v").sort({ createdAt: -1 });
+
+    return {
+        projectId: project.projectId,
+        projectName: project.name,
+        totalUsers: users.length,
+        users
+    };
 };

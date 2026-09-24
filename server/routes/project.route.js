@@ -4,7 +4,8 @@ import {
     getUserProjectsController,
     getProjectByIdController,
     regenerateApiSecretController,
-    deleteProjectController
+    deleteProjectController,
+    getProjectUsersController
 } from "../controllers/project.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 
@@ -19,6 +20,9 @@ router.route("/")
 router.route("/:projectId")
     .get(getProjectByIdController)
     .delete(deleteProjectController);
+
+router.route("/:projectId/users")
+    .get(getProjectUsersController);
 
 router.route("/:projectId/regenerate-secret")
     .post(regenerateApiSecretController);

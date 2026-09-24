@@ -1,11 +1,13 @@
 "use client";
 
 import React from "react";
-import { Server, RefreshCw, Zap } from "lucide-react";
+import { Server, RefreshCw, Zap, ShieldCheck } from "lucide-react";
 import { useAuthForge } from "../context/AuthForgeContext";
 
 export default function ApiServerSandbox() {
   const {
+    developerUser,
+    selectedProject,
     apiTestMode,
     setApiTestMode,
     testEmail,
@@ -20,24 +22,42 @@ export default function ApiServerSandbox() {
     setTestResetToken,
     testNewPassword,
     setTestNewPassword,
+    sdkTokenToVerify,
+    setSdkTokenToVerify,
     apiResponse,
     isTestingApi,
     handleTestApi
   } = useAuthForge();
 
+  // Hide Live API Server Sandbox when user is NOT logged in
+  if (!developerUser) {
+    return null;
+  }
+
   return (
     <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4 flex flex-col justify-between">
       <div className="space-y-4">
+        {/* Title & Selected Project Badge */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-3 gap-2">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Server className="w-5 h-5 text-emerald-400" /> Live API Server Sandbox
-          </h2>
-          <span className="text-xs text-indigo-400 font-mono font-semibold">
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Server className="w-5 h-5 text-emerald-400" /> Live API Server Sandbox
+            </h2>
+            <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5 font-mono">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Project: <strong className="text-indigo-300">{selectedProject?.name || "Default"}</strong> ({selectedProject?.projectId || "proj_default"})</span>
+            </div>
+          </div>
+          <span className="text-xs text-emerald-400 font-mono font-semibold bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 self-start sm:self-auto">
+            {apiTestMode === "sdkRegister" && "POST /api/sdk/auth/register"}
+            {apiTestMode === "sdkLogin" && "POST /api/sdk/auth/login"}
+            {apiTestMode === "verifyToken" && "POST /api/sdk/verify-token"}
+            {apiTestMode === "sdkInfo" && "GET /api/sdk/info"}
+            {apiTestMode === "googleOAuth" && "GET /api/auth/google"}
             {apiTestMode === "login" && "POST /api/auth/login"}
             {apiTestMode === "register" && "POST /api/auth/register"}
             {apiTestMode === "forgotPassword" && "POST /api/auth/forgot-password"}
             {apiTestMode === "resetPassword" && "POST /api/auth/reset-password"}
-            {apiTestMode === "googleOAuth" && "GET /api/auth/google"}
           </span>
         </div>
 
@@ -45,39 +65,39 @@ export default function ApiServerSandbox() {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-[11px] font-medium">
           <button
             type="button"
-            onClick={() => setApiTestMode("login")}
+            onClick={() => setApiTestMode("sdkRegister")}
             className={`py-1.5 px-2 rounded-lg transition-all text-center ${
-              apiTestMode === "login" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
+              apiTestMode === "sdkRegister" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
             }`}
           >
-            Login
+            SDK Register
           </button>
           <button
             type="button"
-            onClick={() => setApiTestMode("register")}
+            onClick={() => setApiTestMode("sdkLogin")}
             className={`py-1.5 px-2 rounded-lg transition-all text-center ${
-              apiTestMode === "register" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
+              apiTestMode === "sdkLogin" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
             }`}
           >
-            Register
+            SDK Login
           </button>
           <button
             type="button"
-            onClick={() => setApiTestMode("forgotPassword")}
+            onClick={() => setApiTestMode("verifyToken")}
             className={`py-1.5 px-2 rounded-lg transition-all text-center ${
-              apiTestMode === "forgotPassword" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
+              apiTestMode === "verifyToken" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
             }`}
           >
-            Forgot Pass
+            Verify Token
           </button>
           <button
             type="button"
-            onClick={() => setApiTestMode("resetPassword")}
+            onClick={() => setApiTestMode("sdkInfo")}
             className={`py-1.5 px-2 rounded-lg transition-all text-center ${
-              apiTestMode === "resetPassword" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
+              apiTestMode === "sdkInfo" ? "bg-indigo-600 text-white font-semibold" : "text-slate-400 hover:text-white"
             }`}
           >
-            Reset Pass
+            SDK Info
           </button>
           <button
             type="button"
@@ -91,7 +111,7 @@ export default function ApiServerSandbox() {
         </div>
 
         <form onSubmit={handleTestApi} className="space-y-3">
-          {apiTestMode === "register" && (
+          {(apiTestMode === "sdkRegister" || apiTestMode === "register") && (
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-[11px] font-medium text-slate-400 mb-1">Full Name</label>
@@ -114,7 +134,7 @@ export default function ApiServerSandbox() {
             </div>
           )}
 
-          {(apiTestMode === "login" || apiTestMode === "register" || apiTestMode === "forgotPassword") && (
+          {(apiTestMode === "sdkLogin" || apiTestMode === "sdkRegister" || apiTestMode === "login" || apiTestMode === "register" || apiTestMode === "forgotPassword") && (
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-1">Email Address</label>
               <input
@@ -126,7 +146,7 @@ export default function ApiServerSandbox() {
             </div>
           )}
 
-          {(apiTestMode === "login" || apiTestMode === "register") && (
+          {(apiTestMode === "sdkLogin" || apiTestMode === "sdkRegister" || apiTestMode === "login" || apiTestMode === "register") && (
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-1">Password</label>
               <input
@@ -138,28 +158,24 @@ export default function ApiServerSandbox() {
             </div>
           )}
 
-          {apiTestMode === "resetPassword" && (
-            <>
-              <div>
-                <label className="block text-[11px] font-medium text-slate-400 mb-1">Reset Token</label>
-                <input
-                  type="text"
-                  placeholder="Paste reset token here..."
-                  value={testResetToken}
-                  onChange={(e) => setTestResetToken(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium text-slate-400 mb-1">New Password</label>
-                <input
-                  type="password"
-                  value={testNewPassword}
-                  onChange={(e) => setTestNewPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-            </>
+          {apiTestMode === "verifyToken" && (
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-1">Access Token to Verify</label>
+              <input
+                type="text"
+                placeholder="Paste JWT Access Token here..."
+                value={sdkTokenToVerify}
+                onChange={(e) => setSdkTokenToVerify(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+              />
+            </div>
+          )}
+
+          {apiTestMode === "sdkInfo" && (
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400 space-y-1 font-mono">
+              <p className="text-slate-300 font-medium">Project Metadata Route</p>
+              <p>Fetches public details for active project: <span className="text-indigo-400">{selectedProject?.projectId}</span></p>
+            </div>
           )}
 
           {apiTestMode === "googleOAuth" && (
@@ -180,11 +196,15 @@ export default function ApiServerSandbox() {
               <Zap className="w-4 h-4 fill-white" />
             )}
             <span>
-              {apiTestMode === "login" && "Execute Login API"}
-              {apiTestMode === "register" && "Execute Register API"}
-              {apiTestMode === "forgotPassword" && "Execute Forgot Password API"}
-              {apiTestMode === "resetPassword" && "Execute Reset Password API"}
+              {apiTestMode === "sdkRegister" && `Register End-User for ${selectedProject?.name || "Project"}`}
+              {apiTestMode === "sdkLogin" && `Login End-User for ${selectedProject?.name || "Project"}`}
+              {apiTestMode === "verifyToken" && "Verify Access Token"}
+              {apiTestMode === "sdkInfo" && "Fetch SDK Project Metadata"}
               {apiTestMode === "googleOAuth" && "Launch Google OAuth Popup"}
+              {apiTestMode === "login" && "Execute Portal Login"}
+              {apiTestMode === "register" && "Execute Portal Register"}
+              {apiTestMode === "forgotPassword" && "Execute Forgot Password"}
+              {apiTestMode === "resetPassword" && "Execute Reset Password"}
             </span>
           </button>
         </form>
@@ -192,8 +212,8 @@ export default function ApiServerSandbox() {
         {/* Response Log Window */}
         {apiResponse && (
           <div className="space-y-1">
-            <div className="text-[11px] text-slate-400 font-medium">Server Response Payload</div>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-300 max-h-44 overflow-y-auto whitespace-pre-wrap">
+            <div className="text-[11px] text-slate-400 font-medium font-mono">Server Response Payload</div>
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-300 max-h-48 overflow-y-auto whitespace-pre-wrap">
               {apiResponse}
             </div>
           </div>

@@ -3,7 +3,8 @@ import {
     getUserProjectsService,
     getProjectByIdService,
     regenerateApiSecretService,
-    deleteProjectService
+    deleteProjectService,
+    getProjectUsersService
 } from "../services/project.service.js";
 
 const getBaseUrl = (req) => {
@@ -102,6 +103,25 @@ export const deleteProjectController = async (req, res) => {
             success: true,
             message: result.message,
             data: { projectId: result.projectId }
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const getProjectUsersController = async (req, res) => {
+    try {
+        const ownerId = req.user.userId;
+        const { projectId } = req.params;
+        const data = await getProjectUsersService(projectId, ownerId);
+
+        res.status(200).json({
+            success: true,
+            data
         });
     } catch (error) {
         const statusCode = error.statusCode || 500;

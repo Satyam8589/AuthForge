@@ -16,7 +16,8 @@ import {
   Copy, 
   Check, 
   ShieldAlert, 
-  Zap 
+  Zap,
+  Users
 } from "lucide-react";
 import { useAuthForge } from "../context/AuthForgeContext";
 
@@ -66,6 +67,10 @@ export default function DeveloperPortal() {
     copyToClipboard,
     activePortalTab,
     setActivePortalTab,
+    projectUsers,
+    totalProjectUsers,
+    isLoadingProjectUsers,
+    fetchProjectUsers,
     auditLogs,
     isLoadingAuditLogs,
     fetchAuditLogs,
@@ -247,6 +252,17 @@ export default function DeveloperPortal() {
               </button>
               <button
                 onClick={() => {
+                  setActivePortalTab("users");
+                  if (selectedProject?.projectId) fetchProjectUsers(selectedProject.projectId);
+                }}
+                className={`px-4 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+                  activePortalTab === "users" ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" /> App End-Users ({totalProjectUsers})
+              </button>
+              <button
+                onClick={() => {
                   setActivePortalTab("audit");
                   fetchAuditLogs();
                 }}
@@ -393,7 +409,106 @@ export default function DeveloperPortal() {
                     <div className="font-mono text-xs text-indigo-300 truncate font-semibold">{currentProjectId}</div>
                   </div>
                 </div>
+
+                {/* Project Registered Users Summary Card */}
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">Registered End-Users for <span className="text-white font-medium">{selectedProject?.name || "Selected Project"}</span></div>
+                      <div className="text-base font-bold text-white font-mono mt-0.5">{totalProjectUsers} Users</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setActivePortalTab("users");
+                      if (selectedProject?.projectId) fetchProjectUsers(selectedProject.projectId);
+                    }}
+                    className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 rounded-lg text-xs font-medium border border-indigo-500/30 transition-all flex items-center gap-1.5"
+                  >
+                    <span>View User Directory</span>
+                    <Users className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 2: PROJECT END-USERS DIRECTORY */}
+          {activePortalTab === "users" && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800 pb-3 gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Users className="w-4 h-4 text-emerald-400" /> Registered Application Users ({totalProjectUsers})
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    End-users who authenticated or registered in your application using project key <code className="text-indigo-300 font-mono">{selectedProject?.projectId}</code>.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => selectedProject?.projectId && fetchProjectUsers(selectedProject.projectId)}
+                  disabled={isLoadingProjectUsers}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingProjectUsers ? "animate-spin" : ""}`} /> Refresh Users
+                </button>
+              </div>
+
+              {projectUsers.length === 0 ? (
+                <div className="p-8 text-center bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-2">
+                  <Users className="w-8 h-8 text-slate-600 mx-auto" />
+                  <p className="text-slate-300 font-medium">No registered end-users for {selectedProject?.name || "this project"} yet.</p>
+                  <p className="text-[11px] text-slate-500">
+                    Use the SDK integration in your app or test <code className="text-indigo-400">POST /api/sdk/auth/register</code> in the Live API Server Sandbox to register users under key <span className="font-mono text-emerald-400">{selectedProject?.apiKey}</span>.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-slate-900/80 border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
+                      <tr>
+                        <th className="px-4 py-3">Full Name</th>
+                        <th className="px-4 py-3">Username</th>
+                        <th className="px-4 py-3">Email Address</th>
+                        <th className="px-4 py-3">Role</th>
+                        <th className="px-4 py-3">Registered Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {projectUsers.map((usr: any) => (
+                        <tr key={usr._id} className="hover:bg-slate-900/40 transition-colors">
+                          <td className="px-4 py-3 font-sans font-medium text-white flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-300 text-xs font-bold shrink-0">
+                              {(usr.name || usr.email || "U").charAt(0).toUpperCase()}
+                            </div>
+                            <span>{usr.name}</span>
+                          </td>
+                          <td className="px-4 py-3 text-indigo-300">@{usr.username}</td>
+                          <td className="px-4 py-3 text-slate-200">{usr.email}</td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              {usr.role || "USER"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 text-[11px]">
+                            {new Date(usr.createdAt || Date.now()).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 

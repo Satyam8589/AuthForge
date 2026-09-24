@@ -19,6 +19,15 @@ export const verifyTokenController = async (req, res) => {
         const decoded = verifyAccessToken(token);
         const user = await getUserByIdService(decoded.userId);
 
+        // Security check: ensure token belongs to the requesting AuthForge project
+        if (user.projectId && user.projectId !== req.project.projectId && user.projectId !== 'default') {
+            return res.status(403).json({
+                success: false,
+                valid: false,
+                message: "Security error: Token was issued for a different AuthForge project"
+            });
+        }
+
         res.status(200).json({
             success: true,
             valid: true,

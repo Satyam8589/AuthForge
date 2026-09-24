@@ -24,20 +24,23 @@ export function useDashboardState() {
   const [devAuthLoading, setDevAuthLoading] = useState(false);
   const [devAuthMsg, setDevAuthMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Projects & Audit Logs State
+  // Projects, End-Users & Audit Logs State
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [newProjectName, setNewProjectName] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [projectUsers, setProjectUsers] = useState<any[]>([]);
+  const [totalProjectUsers, setTotalProjectUsers] = useState<number>(0);
+  const [isLoadingProjectUsers, setIsLoadingProjectUsers] = useState<boolean>(false);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [isLoadingAuditLogs, setIsLoadingAuditLogs] = useState(false);
-  const [activePortalTab, setActivePortalTab] = useState<"keys" | "audit" | "sdkTester">("keys");
+  const [activePortalTab, setActivePortalTab] = useState<"keys" | "users" | "audit" | "sdkTester">("keys");
   const [sdkTokenToVerify, setSdkTokenToVerify] = useState("");
   const [sdkVerificationResult, setSdkVerificationResult] = useState<string | null>(null);
   const [isVerifyingSdkToken, setIsVerifyingSdkToken] = useState(false);
 
   // Comprehensive Live API Tester State
-  const [apiTestMode, setApiTestMode] = useState<"login" | "register" | "forgotPassword" | "resetPassword" | "googleOAuth">("login");
+  const [apiTestMode, setApiTestMode] = useState<"sdkRegister" | "sdkLogin" | "verifyToken" | "sdkInfo" | "login" | "register" | "forgotPassword" | "resetPassword" | "googleOAuth">("sdkRegister");
   const [testEmail, setTestEmail] = useState("user@example.com");
   const [testPassword, setTestPassword] = useState("Password123!");
   const [testName, setTestName] = useState("John Doe");
@@ -170,6 +173,36 @@ export function useDashboardState() {
       setIsLoadingAuditLogs(false);
     }
   };
+
+  // Fetch end-users belonging to a specific project
+  const fetchProjectUsers = async (projectId?: string, token?: string) => {
+    const targetProjectId = projectId || selectedProject?.projectId;
+    const activeToken = token || developerToken;
+    if (!targetProjectId || !activeToken) return;
+
+    setIsLoadingProjectUsers(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${targetProjectId}/users`, {
+        headers: { "Authorization": `Bearer ${activeToken}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.data) {
+        setProjectUsers(data.data.users || []);
+        setTotalProjectUsers(data.data.totalUsers || 0);
+      }
+    } catch (err) {
+      console.error("Failed to fetch project users:", err);
+    } finally {
+      setIsLoadingProjectUsers(false);
+    }
+  };
+
+  // Auto-fetch users whenever selected project changes
+  useEffect(() => {
+    if (selectedProject?.projectId && developerToken) {
+      fetchProjectUsers(selectedProject.projectId, developerToken);
+    }
+  }, [selectedProject?.projectId, developerToken]);
 
   // Handle Developer Register / Login
   const handleDeveloperAuth = async (e: React.FormEvent) => {
@@ -404,10 +437,33 @@ export function useDashboardState() {
       return;
     }
 
-    let endpoint = "/api/auth/login";
+    let endpoint = "/api/sdk/auth/login";
+    let method = "POST";
     let payload: any = {};
 
-    if (apiTestMode === "login") {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+
+    if (selectedProject) {
+      if (selectedProject.projectId) headers["x-authforge-project-id"] = selectedProject.projectId;
+      if (selectedProject.apiKey) headers["x-authforge-api-key"] = selectedProject.apiKey;
+      if (selectedProject.apiSecret) headers["x-authforge-api-secret"] = selectedProject.apiSecret;
+    }
+
+    if (apiTestMode === "sdkRegister") {
+      endpoint = "/api/sdk/auth/register";
+      payload = { name: testName, username: testUsername, email: testEmail, password: testPassword };
+    } else if (apiTestMode === "sdkLogin") {
+      endpoint = "/api/sdk/auth/login";
+      payload = { email: testEmail, password: testPassword };
+    } else if (apiTestMode === "verifyToken") {
+      endpoint = "/api/sdk/verify-token";
+      payload = { token: sdkTokenToVerify || testResetToken };
+    } else if (apiTestMode === "sdkInfo") {
+      endpoint = "/api/sdk/info";
+      method = "GET";
+    } else if (apiTestMode === "login") {
       endpoint = "/api/auth/login";
       payload = { email: testEmail, password: testPassword };
     } else if (apiTestMode === "register") {
@@ -421,19 +477,26 @@ export function useDashboardState() {
       payload = { token: testResetToken, newPassword: testNewPassword };
     }
 
-    setApiResponse(`Sending request to POST ${API_BASE_URL}${endpoint}...`);
+    setApiResponse(`Sending ${method} request to ${API_BASE_URL}${endpoint}...`);
 
     try {
-      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const options: RequestInit = {
+        method,
+        headers,
+      };
+      if (method !== "GET") {
+        options.body = JSON.stringify(payload);
+      }
+
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, options);
       const data = await res.json();
       setApiResponse(JSON.stringify(data, null, 2));
 
       if (apiTestMode === "forgotPassword" && data.resetToken) {
         setTestResetToken(data.resetToken);
+      }
+      if ((apiTestMode === "sdkLogin" || apiTestMode === "sdkRegister") && data.data?.accessToken) {
+        setSdkTokenToVerify(data.data.accessToken);
       }
     } catch (err: any) {
       setApiResponse(
@@ -481,6 +544,10 @@ export function useDashboardState() {
     newProjectName,
     setNewProjectName,
     isCreatingProject,
+    projectUsers,
+    totalProjectUsers,
+    isLoadingProjectUsers,
+    fetchProjectUsers,
     auditLogs,
     isLoadingAuditLogs,
     activePortalTab,
