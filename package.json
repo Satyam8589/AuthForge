@@ -13,7 +13,11 @@
   "license": "ISC",
   "author": "Satyam kumar singh",
   "type": "module",
-  "main": "server.js",
+  "main": "./sdk/authforge-sdk.js",
+  "exports": {
+    ".": "./sdk/authforge-sdk.js",
+    "./sdk": "./sdk/authforge-sdk.js"
+  },
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",

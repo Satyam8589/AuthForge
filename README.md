@@ -111,6 +111,38 @@ npm test tests/integration/user.test.js
 
 ---
 
+## 📦 SDK Installation & Usage
+
+Other developers can install AuthForge directly into their Node.js/Express applications using GitHub:
+
+### 1. Installation
+```bash
+npm install github:Satyam8589/AuthForge
+```
+
+### 2. Quick Start
+
+```javascript
+import { AuthForgeClient } from "authforge";
+
+// Initialize with your connection string or config
+const auth = new AuthForgeClient(process.env.AUTHFORGE_URI);
+// Format: authforge://<API_KEY>:<API_SECRET>@<PROJECT_ID>?host=https://your-authforge-server.com
+
+// Protect routes in Express
+app.get("/api/protected-route", auth.expressMiddleware(), (req, res) => {
+    res.json({ message: `Hello ${req.user.name}`, user: req.user });
+});
+
+// Or verify tokens manually
+const verification = await auth.verifyToken(userToken);
+if (verification.valid) {
+    console.log("Valid user:", verification.data.user);
+}
+```
+
+---
+
 ## 📜 License
 This project is licensed under the **ISC License**.
 

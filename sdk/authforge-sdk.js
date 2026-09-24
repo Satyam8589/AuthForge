@@ -1,10 +1,7 @@
 import axios from "axios";
 
 export class AuthForgeClient {
-    /**
-     * Initialize AuthForge Client with a Connection String or Config object.
-     * @param {string | object} config - Connection string (e.g. authforge://af_pk_...:af_sk_...@proj_...??host=http://localhost:2000) or options object
-     */
+    
     constructor(config) {
         if (typeof config === "string") {
             this.config = AuthForgeClient.parseConnectionString(config);
@@ -24,13 +21,6 @@ export class AuthForgeClient {
         }
     }
 
-    /**
-     * Parses an AuthForge connection string.
-     * Format: authforge://<API_KEY>:<API_SECRET>@<PROJECT_ID>?host=<ENCODED_HOST>
-     * Or: authforge://<API_KEY>:<API_SECRET>@<HOST_PORT>?projectId=<PROJECT_ID>
-     * @param {string} connStr 
-     * @returns {object} { apiKey, apiSecret, projectId, host }
-     */
     static parseConnectionString(connStr) {
         if (!connStr || !connStr.startsWith("authforge://")) {
             throw new Error("Invalid AuthForge connection string scheme. Expected format starting with 'authforge://'");
