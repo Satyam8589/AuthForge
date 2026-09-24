@@ -547,6 +547,33 @@ body {
     font-family: var(--font-mono);
     color: var(--text-accent);
     font-weight: 400;
+.label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.link-btn-sm {
+    background: none;
+    border: none;
+    color: var(--primary-light, #8b5cf6);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.2s ease;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.link-btn-sm:hover {
+    color: var(--accent-pink, #ec4899);
+}
+
+.form-footer-action {
+    margin-top: 0.75rem;
+    text-align: center;
 }
 
 .input-wrap {

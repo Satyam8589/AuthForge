@@ -1,7 +1,8 @@
 import User from "../models/User.model.js";
 import RefreshToken from "../models/RefreshToken.model.js";
 import { hashPassword, comparePassword } from "../utils/hash.js";
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken, generatePasswordResetToken, verifyPasswordResetToken } from "../utils/jwt.js";
+import { sendPasswordResetEmail } from "./email.service.js";
 import { getClientInfo } from "../utils/clientInfo.js";
 import { 
     logRegistration, 
@@ -479,4 +480,110 @@ export const loginUserByGoogle = async (userData, req) => {
         throw error;
     }
 };
+
+export const requestPasswordReset = async (email, req) => {
+    try {
+        email = email?.trim();
+
+        if (!email) {
+            const error = new Error("Email is required");
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            const error = new Error("Invalid email format");
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const user = await User.findOne({ email });
+
+        // Security best practice: Prevent email enumeration
+        if (!user) {
+            return {
+                success: true,
+                message: "If an account with that email exists, password reset instructions have been sent."
+            };
+        }
+
+        const resetToken = generatePasswordResetToken({
+            userId: user._id,
+            email: user.email
+        });
+
+        await sendPasswordResetEmail(user.email, resetToken, req);
+
+        await logAuditEvent({
+            userId: user._id,
+            action: 'PASSWORD_RESET',
+            req,
+            details: { email: user.email, stage: 'requested' }
+        });
+
+        return {
+            success: true,
+            message: "If an account with that email exists, password reset instructions have been sent.",
+            resetToken // Included for convenience in development/testing
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const resetPassword = async (token, newPassword, req) => {
+    try {
+        if (!token || !newPassword) {
+            const error = new Error("Reset token and new password are required");
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            const error = new Error("Password must be at least 8 characters with uppercase, lowercase, and number");
+            error.statusCode = 400;
+            throw error;
+        }
+
+        let decoded;
+        try {
+            decoded = verifyPasswordResetToken(token);
+        } catch (err) {
+            const error = new Error(err.message || "Invalid or expired password reset token");
+            error.statusCode = 401;
+            throw error;
+        }
+
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+            const error = new Error("User not found");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const hashedPassword = await hashPassword(newPassword);
+        user.password = hashedPassword;
+        await user.save();
+
+        // Invalidate all active sessions for security after password change
+        await RefreshToken.deleteMany({ userId: user._id });
+
+        await logAuditEvent({
+            userId: user._id,
+            action: 'PASSWORD_RESET',
+            req,
+            details: { email: user.email, stage: 'completed' }
+        });
+
+        return {
+            success: true,
+            message: "Password reset successfully. Please sign in with your new password."
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
 

@@ -8,13 +8,16 @@ import {
     auditLogController,
     registerOAuthController,
     loginOAuthController,
-    googleOAuthCallbackController
+    googleOAuthCallbackController,
+    forgotPasswordController,
+    resetPasswordController
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { 
     registerLimiter, 
     loginLimiter, 
-    logoutLimiter 
+    logoutLimiter,
+    passwordResetLimiter
 } from "../middlewares/rateLimiter.middleware.js";
 import passport from "../config/passport.js";
 
@@ -23,6 +26,8 @@ const router = Router();
 // Public routes with rate limiting
 router.route("/register").post(registerLimiter, registerUserController);
 router.route("/login").post(loginLimiter, loginUserController);
+router.route("/forgot-password").post(passwordResetLimiter, forgotPasswordController);
+router.route("/reset-password").post(passwordResetLimiter, resetPasswordController);
 router.route("/refresh-token").post(refreshTokensController);
 router.route("/register-oauth").post(registerLimiter, registerOAuthController);
 router.route("/login-oauth").post(loginLimiter, loginOAuthController);

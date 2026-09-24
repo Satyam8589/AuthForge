@@ -95,3 +95,20 @@ export const logoutLimiter = rateLimit({
         });
     }
 });
+
+export const passwordResetLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    skip: shouldSkip,
+    message: "Too many password reset attempts, please try again after an hour",
+    store: getStore("passwordReset"),
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+        return res.status(429).json({
+            success: false,
+            message: "Too many password reset attempts from this IP, please try again after an hour"
+        });
+    }
+});
+

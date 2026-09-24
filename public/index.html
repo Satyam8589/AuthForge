@@ -183,7 +183,10 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="login-password">Password</label>
+                            <div class="label-row">
+                                <label for="login-password">Password</label>
+                                <button type="button" id="toggleForgotBtn" class="link-btn-sm">Forgot Password?</button>
+                            </div>
                             <div class="input-wrap">
                                 <span class="input-icon">🔒</span>
                                 <input id="login-password" type="password" name="password" placeholder="••••••••••••" autocomplete="current-password" required>
@@ -196,6 +199,66 @@
                                 <polyline points="12 5 19 12 12 19" />
                             </svg>
                         </button>
+                    </form>
+                </div>
+
+                <!-- Forgot & Reset Password Card -->
+                <div class="card auth-card" id="forgotCard" style="display: none;">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="card-icon-badge">🔑</span>
+                            <div>
+                                <h3 id="forgotCardTitle">Forgot Password</h3>
+                                <p class="card-subtitle" id="forgotCardSubtitle">Request a reset link or reset your password</p>
+                            </div>
+                        </div>
+                        <button type="button" id="closeForgotCardBtn" class="btn-icon" title="Close Panel">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Step 1: Request Reset Link Form -->
+                    <form id="forgotPasswordForm" class="form">
+                        <div class="form-group">
+                            <label for="forgot-email">Registered Email Address</label>
+                            <div class="input-wrap">
+                                <span class="input-icon">✉️</span>
+                                <input id="forgot-email" type="email" name="email" placeholder="alex@company.com" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <span>Send Password Reset Instructions</span>
+                        </button>
+                        <div class="form-footer-action">
+                            <button type="button" id="switchToResetTokenBtn" class="link-btn-sm">Already have a reset token?</button>
+                        </div>
+                    </form>
+
+                    <!-- Step 2: Reset Password Form -->
+                    <form id="resetPasswordForm" class="form" style="display: none;">
+                        <div class="form-group">
+                            <label for="reset-token">Reset Token</label>
+                            <div class="input-wrap">
+                                <span class="input-icon">🎫</span>
+                                <input id="reset-token" type="text" name="token" placeholder="Paste JWT Reset Token" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="reset-new-password">New Password</label>
+                            <div class="input-wrap">
+                                <span class="input-icon">🔑</span>
+                                <input id="reset-new-password" type="password" name="newPassword" placeholder="Min 8 chars (A-Z, a-z, 0-9)" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <span>Confirm & Save New Password</span>
+                        </button>
+                        <div class="form-footer-action">
+                            <button type="button" id="switchToForgotEmailBtn" class="link-btn-sm">← Back to Request Reset Link</button>
+                        </div>
                     </form>
                 </div>
 

@@ -7,7 +7,9 @@ import {
     auditLogService,
     getUserAuditLogsService,
     registerUserByGoogle, 
-    loginUserByGoogle
+    loginUserByGoogle,
+    requestPasswordReset,
+    resetPassword
 } from "../services/auth.service.js";
 import { getOAuthCompletionHTML } from "../utils/oauthHtml.js";
 import { blacklistToken } from "../services/redis.service.js";
@@ -308,4 +310,42 @@ export const googleOAuthCallbackController = async (req, res) => {
         }));
     }
 };
+
+export const forgotPasswordController = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const result = await requestPasswordReset(email, req);
+
+        res.status(200).json({
+            success: true,
+            message: result.message,
+            ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' ? { resetToken: result.resetToken } : {})
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const resetPasswordController = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        const result = await resetPassword(token, newPassword, req);
+
+        res.status(200).json({
+            success: true,
+            message: result.message
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 

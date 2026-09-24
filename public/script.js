@@ -36,6 +36,18 @@ const refreshTokenBtn = document.getElementById('refreshTokenBtn');
 const logoutAllBtn = document.getElementById('logoutAllBtn');
 const clearResponseBtn = document.getElementById('clearResponseBtn');
 
+// Forgot & Reset Password DOM Elements
+const toggleForgotBtn = document.getElementById('toggleForgotBtn');
+const forgotCard = document.getElementById('forgotCard');
+const forgotCardTitle = document.getElementById('forgotCardTitle');
+const forgotCardSubtitle = document.getElementById('forgotCardSubtitle');
+const closeForgotCardBtn = document.getElementById('closeForgotCardBtn');
+const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+const resetPasswordForm = document.getElementById('resetPasswordForm');
+const switchToResetTokenBtn = document.getElementById('switchToResetTokenBtn');
+const switchToForgotEmailBtn = document.getElementById('switchToForgotEmailBtn');
+const resetTokenInput = document.getElementById('reset-token');
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     checkAuthStatus();
@@ -45,6 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Pre-fill SDK Sandbox with sample connection string for instant testing
     setupSdkSandboxDefaults();
+
+    // Auto-detect reset token in URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('resetToken') || urlParams.get('token');
+    if (resetToken) {
+        showResetPasswordPanel(resetToken);
+    }
 
     // Listen for messages from OAuth popup
     window.addEventListener('message', (event) => {
@@ -121,6 +140,41 @@ function setupSdkSandboxDefaults() {
 function setupEventListeners() {
     registerForm.addEventListener('submit', handleRegister);
     loginForm.addEventListener('submit', handleLogin);
+
+    if (toggleForgotBtn) {
+        toggleForgotBtn.addEventListener('click', () => {
+            if (forgotCard) {
+                const isHidden = forgotCard.style.display === 'none' || !forgotCard.style.display;
+                forgotCard.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) {
+                    switchToForgotEmailView();
+                    forgotCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        });
+    }
+
+    if (closeForgotCardBtn) {
+        closeForgotCardBtn.addEventListener('click', () => {
+            if (forgotCard) forgotCard.style.display = 'none';
+        });
+    }
+
+    if (switchToResetTokenBtn) {
+        switchToResetTokenBtn.addEventListener('click', switchToResetTokenView);
+    }
+
+    if (switchToForgotEmailBtn) {
+        switchToForgotEmailBtn.addEventListener('click', switchToForgotEmailView);
+    }
+
+    if (forgotPasswordForm) {
+        forgotPasswordForm.addEventListener('submit', handleForgotPassword);
+    }
+
+    if (resetPasswordForm) {
+        resetPasswordForm.addEventListener('submit', handleResetPassword);
+    }
     
     if (googleRegisterBtn) {
         googleRegisterBtn.addEventListener('click', () => signInWithGoogle('register'));
@@ -273,8 +327,106 @@ async function handleLogin(e) {
             updateUIAuthenticated();
             showToast('Login successful!', 'success');
             loginForm.reset();
+            if (forgotCard) forgotCard.style.display = 'none';
         } else {
             showToast(result.message || 'Login failed', 'error');
+        }
+    } catch (error) {
+        displayResponse({ error: error.message }, false);
+        showToast('Network error. Please try again.', 'error');
+    } finally {
+        setLoading(e.target, false);
+    }
+}
+
+// UI view switchers for Forgot & Reset Password
+function switchToForgotEmailView() {
+    if (forgotPasswordForm) forgotPasswordForm.style.display = 'block';
+    if (resetPasswordForm) resetPasswordForm.style.display = 'none';
+    if (forgotCardTitle) forgotCardTitle.textContent = 'Forgot Password';
+    if (forgotCardSubtitle) forgotCardSubtitle.textContent = 'Enter your email to receive password reset instructions';
+}
+
+function switchToResetTokenView() {
+    if (forgotPasswordForm) forgotPasswordForm.style.display = 'none';
+    if (resetPasswordForm) resetPasswordForm.style.display = 'block';
+    if (forgotCardTitle) forgotCardTitle.textContent = 'Reset Password';
+    if (forgotCardSubtitle) forgotCardSubtitle.textContent = 'Enter your reset token and new password';
+}
+
+function showResetPasswordPanel(token = '') {
+    if (forgotCard) {
+        forgotCard.style.display = 'block';
+        switchToResetTokenView();
+        if (resetTokenInput && token) {
+            resetTokenInput.value = token;
+        }
+        forgotCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Handle Forgot Password Request
+async function handleForgotPassword(e) {
+    e.preventDefault();
+    const formData = new FormData(forgotPasswordForm);
+    const data = Object.fromEntries(formData);
+
+    setLoading(e.target, true);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        displayResponse(result, response.ok);
+
+        if (response.ok) {
+            showToast(result.message || 'Reset link sent!', 'success');
+            
+            // If development reset token is returned in payload, auto-fill and switch view
+            if (result.resetToken) {
+                showToast('Dev reset token auto-filled in form!', 'info');
+                showResetPasswordPanel(result.resetToken);
+            }
+        } else {
+            showToast(result.message || 'Failed to send reset link', 'error');
+        }
+    } catch (error) {
+        displayResponse({ error: error.message }, false);
+        showToast('Network error. Please try again.', 'error');
+    } finally {
+        setLoading(e.target, false);
+    }
+}
+
+// Handle Reset Password Submission
+async function handleResetPassword(e) {
+    e.preventDefault();
+    const formData = new FormData(resetPasswordForm);
+    const data = Object.fromEntries(formData);
+
+    setLoading(e.target, true);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        displayResponse(result, response.ok);
+
+        if (response.ok) {
+            showToast('Password reset successfully! Please sign in.', 'success');
+            resetPasswordForm.reset();
+            forgotPasswordForm.reset();
+            if (forgotCard) forgotCard.style.display = 'none';
+        } else {
+            showToast(result.message || 'Password reset failed', 'error');
         }
     } catch (error) {
         displayResponse({ error: error.message }, false);
