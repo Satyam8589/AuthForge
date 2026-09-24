@@ -17,7 +17,14 @@ import {
   Check, 
   ShieldAlert, 
   Zap,
-  Users
+  Users,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  Clock,
+  XCircle,
+  Info,
+  Shield
 } from "lucide-react";
 import { useAuthForge } from "../context/AuthForgeContext";
 
@@ -80,6 +87,104 @@ export default function DeveloperPortal() {
     isVerifyingSdkToken,
     handleSdkVerifyToken
   } = useAuthForge();
+
+  const [auditStatusFilter, setAuditStatusFilter] = React.useState<"ALL" | "GREEN" | "RED" | "YELLOW">("ALL");
+  const [expandedLogId, setExpandedLogId] = React.useState<string | null>(null);
+  const [auditProjectFilter, setAuditProjectFilter] = React.useState<string>("ALL");
+  const [sdkSnippetTab, setSdkSnippetTab] = React.useState<"quickstart" | "authFlow" | "middleware">("quickstart");
+
+  React.useEffect(() => {
+    if (activePortalTab === "audit") {
+      fetchAuditLogs(undefined, auditProjectFilter === "ALL" ? "" : auditProjectFilter);
+    }
+  }, [activePortalTab, auditProjectFilter]);
+
+  const getAuditLogCategory = (action: string) => {
+    const act = (action || "").toUpperCase();
+    if (
+      [
+        "LOGIN_SUCCESS",
+        "REGISTER",
+        "TOKEN_VERIFIED",
+        "PASSWORD_RESET_COMPLETED",
+        "PROJECT_CREATED",
+        "EMAIL_VERIFIED",
+        "ACCOUNT_UNLOCKED"
+      ].includes(act)
+    ) {
+      return {
+        category: "GREEN",
+        badgeCss: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+        dotCss: "bg-emerald-500 shadow-sm shadow-emerald-500/50",
+        label: "GREEN • SUCCESS",
+        icon: CheckCircle2,
+        getTitle: (log: any) => {
+          if (act === "LOGIN_SUCCESS") return `User ${log.details?.email || ""} Logged In Successfully`;
+          if (act === "REGISTER") return `New User ${log.details?.email || ""} Registered`;
+          if (act === "TOKEN_VERIFIED") return `SDK Bearer Token Verified Successfully`;
+          if (act === "PASSWORD_RESET_COMPLETED") return `Password Reset Completed for ${log.details?.email || ""}`;
+          if (act === "PROJECT_CREATED") return `Project "${log.details?.projectName || log.details?.projectId}" Created`;
+          return act.replace(/_/g, " ");
+        }
+      };
+    }
+    if (
+      [
+        "LOGIN_FAILED",
+        "TOKEN_INVALID",
+        "PROJECT_DELETED",
+        "KEYS_ROTATED",
+        "ACCOUNT_LOCKED",
+        "USER_DELETED"
+      ].includes(act)
+    ) {
+      return {
+        category: "RED",
+        badgeCss: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+        dotCss: "bg-rose-500 shadow-sm shadow-rose-500/50",
+        label: "RED • ALERT / FAILED",
+        icon: ShieldAlert,
+        getTitle: (log: any) => {
+          if (act === "LOGIN_FAILED") return `Login Failed: ${log.details?.reason || "Invalid Credentials"} (${log.details?.email || "User"})`;
+          if (act === "TOKEN_INVALID") return `SDK Token Verification Failed: ${log.details?.reason || "Invalid Token"}`;
+          if (act === "KEYS_ROTATED") return `API Secret Regenerated for Project ${log.details?.projectId || ""}`;
+          if (act === "PROJECT_DELETED") return `Project ${log.details?.projectId || ""} Deleted`;
+          return act.replace(/_/g, " ");
+        }
+      };
+    }
+    // Default: YELLOW
+    return {
+      category: "YELLOW",
+      badgeCss: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+      dotCss: "bg-amber-400 shadow-sm shadow-amber-400/50",
+      label: "YELLOW • ATTEMPT / NOTICE",
+      icon: AlertCircle,
+      getTitle: (log: any) => {
+        if (act === "LOGIN_ATTEMPT") return `User ${log.details?.email || ""} Initiated Login Request`;
+        if (act === "LOGOUT") return `User Logged Out`;
+        if (act === "LOGOUT_ALL") return `User Logged Out From All Devices`;
+        if (act === "PASSWORD_RESET_REQUESTED") return `Password Reset Requested for ${log.details?.email || ""}`;
+        if (act === "TOKEN_REFRESHED") return `Auth Session Token Refreshed`;
+        return act.replace(/_/g, " ");
+      }
+    };
+  };
+
+  const greenLogsCount = auditLogs.filter(l => getAuditLogCategory(l.action).category === "GREEN").length;
+  const redLogsCount = auditLogs.filter(l => getAuditLogCategory(l.action).category === "RED").length;
+  const yellowLogsCount = auditLogs.filter(l => getAuditLogCategory(l.action).category === "YELLOW").length;
+
+  const filteredLogs = auditLogs.filter((log: any) => {
+    const info = getAuditLogCategory(log.action);
+    if (auditStatusFilter !== "ALL" && info.category !== auditStatusFilter) {
+      return false;
+    }
+    if (auditProjectFilter !== "ALL" && (log.details?.projectId || "default") !== auditProjectFilter) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div id="dev-portal" className="glass-card p-6 rounded-2xl border border-indigo-500/30 space-y-6">
@@ -432,6 +537,151 @@ export default function DeveloperPortal() {
                     <Users className="w-3.5 h-3.5" />
                   </button>
                 </div>
+
+                {/* SDK Integration Snippet & Instructions Section */}
+                <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-3 gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-emerald-400" /> SDK Integration Snippet & Easy Setup Instructions
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Follow these simple steps to integrate AuthForge into your custom frontend & backend app.
+                      </p>
+                    </div>
+
+                    {/* Code Snippet Subtabs */}
+                    <div className="flex space-x-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs shrink-0">
+                      <button
+                        onClick={() => setSdkSnippetTab("quickstart")}
+                        className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                          sdkSnippetTab === "quickstart" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        1. Quickstart & Client
+                      </button>
+                      <button
+                        onClick={() => setSdkSnippetTab("authFlow")}
+                        className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                          sdkSnippetTab === "authFlow" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        2. Auth Methods Flow
+                      </button>
+                      <button
+                        onClick={() => setSdkSnippetTab("middleware")}
+                        className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                          sdkSnippetTab === "middleware" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        3. Express Middleware
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Step 1: Install Package Banner */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-800 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center border border-emerald-500/30">1</span>
+                      <span className="text-xs text-slate-300 font-medium">Install official NPM package:</span>
+                      <code className="text-xs font-mono text-emerald-300 bg-slate-950 px-2 py-1 rounded border border-slate-800">npm install authforge-sdk</code>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard("npm install authforge-sdk", "npmInstallCmd")}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-mono transition-colors"
+                    >
+                      {copiedKey === "npmInstallCmd" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedKey === "npmInstallCmd" ? "Copied Command" : "Copy Command"}</span>
+                    </button>
+                  </div>
+
+                  {/* Code Snippet Box */}
+                  <div className="relative group">
+                    <div className="absolute top-3 right-3 z-10">
+                      <button
+                        onClick={() => {
+                          const codeToCopy =
+                            sdkSnippetTab === "quickstart"
+                              ? `import { AuthForge } from "authforge-sdk";\n\n// Initialize AuthForge Client for ${selectedProject?.name || "App"}\nexport const authforge = new AuthForge({\n  connectionString: "${currentConnString}"\n});`
+                              : sdkSnippetTab === "authFlow"
+                              ? `import { authforge } from "./authforge";\n\n// 1. LOGIN WITH EMAIL & PASSWORD\nasync function handleUserLogin(email, password) {\n  const res = await authforge.login({ email, password });\n  return res.user;\n}\n\n// 2. REGISTER NEW END-USER\nasync function handleUserRegister(name, username, email, password) {\n  const res = await authforge.register({ name, username, email, password });\n  return res;\n}\n\n// 3. FORGOT PASSWORD REQUEST\nasync function handleForgotPassword(email) {\n  const res = await authforge.forgotPassword(email);\n  return res;\n}\n\n// 4. RESET PASSWORD WITH TOKEN FROM EMAIL\nasync function handleResetPassword(token, newPassword) {\n  const res = await authforge.resetPassword(token, newPassword);\n  return res;\n}`
+                              : `import express from "express";\nimport { AuthForge } from "authforge-sdk";\n\nconst app = express();\nconst authforge = new AuthForge({\n  connectionString: "${currentConnString}"\n});\n\n// Protect API endpoint - verifies Bearer JWT token against AuthForge project ${currentProjectId}\napp.get("/api/user-profile", authforge.middleware(), (req, res) => {\n  res.json({ message: "Access granted", user: req.user });\n});`;
+
+                          copyToClipboard(codeToCopy, `snippet_${sdkSnippetTab}`);
+                        }}
+                        className="px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 rounded-lg text-xs font-medium border border-indigo-500/40 transition-all flex items-center gap-1.5 shadow-md"
+                      >
+                        {copiedKey === `snippet_${sdkSnippetTab}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedKey === `snippet_${sdkSnippetTab}` ? "Copied Snippet" : "Copy Code Snippet"}</span>
+                      </button>
+                    </div>
+
+                    {sdkSnippetTab === "quickstart" && (
+                      <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">
+                        <span className="text-slate-500">// Step 2: Initialize AuthForge Client with your pre-configured Connection String</span>{"\n"}
+                        <span className="text-purple-400">import</span> {"{"} AuthForge {"}"} <span className="text-purple-400">from</span> <span className="text-emerald-300">"authforge-sdk"</span>;{"\n\n"}
+                        <span className="text-purple-400">export const</span> <span className="text-amber-300">authforge</span> = <span className="text-purple-400">new</span> <span className="text-indigo-400">AuthForge</span>({"{\n"}
+                        {"  "}connectionString: <span className="text-emerald-300">"{currentConnString}"</span>{"\n"}
+                        {"}"});{"\n\n"}
+                        <span className="text-slate-500">// Alternatively, initialize using individual keys:</span>{"\n"}
+                        <span className="text-slate-500">// export const authforge = new AuthForge({"{"}</span>{"\n"}
+                        <span className="text-slate-500">//   apiKey: "{currentApiKey}",</span>{"\n"}
+                        <span className="text-slate-500">//   apiSecret: "{currentApiSecret}",</span>{"\n"}
+                        <span className="text-slate-500">//   projectId: "{currentProjectId}"</span>{"\n"}
+                        <span className="text-slate-500">// {"}"});</span>
+                      </pre>
+                    )}
+
+                    {sdkSnippetTab === "authFlow" && (
+                      <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">
+                        <span className="text-purple-400">import</span> {"{"} authforge {"}"} <span className="text-purple-400">from</span> <span className="text-emerald-300">"./authforge"</span>;{"\n\n"}
+                        <span className="text-slate-500">// 1. LOGIN WITH EMAIL & PASSWORD (Inside your custom Login form onSubmit)</span>{"\n"}
+                        <span className="text-purple-400">async function</span> <span className="text-indigo-400">handleUserLogin</span>(email, password) {"{\n"}
+                        {"  "}<span className="text-purple-400">try</span> {"{\n"}
+                        {"    "}<span className="text-purple-400">const</span> res = <span className="text-purple-400">await</span> authforge.<span className="text-amber-300">login</span>({"{"} email, password {"}"});{"\n"}
+                        {"    "}console.<span className="text-indigo-300">log</span>(<span className="text-emerald-300">"User logged in! Token:"</span>, res.accessToken);{"\n"}
+                        {"    "}<span className="text-purple-400">return</span> res.user;{"\n"}
+                        {"  }"} <span className="text-purple-400">catch</span> (err) {"{\n"}
+                        {"    "}console.<span className="text-rose-400">error</span>(<span className="text-rose-300">"Login failed:"</span>, err.message);{"\n"}
+                        {"  }"}\n{"}"}{"\n\n"}
+                        <span className="text-slate-500">// 2. REGISTER NEW USER</span>{"\n"}
+                        <span className="text-purple-400">async function</span> <span className="text-indigo-400">handleUserRegister</span>(name, username, email, password) {"{\n"}
+                        {"  "}<span className="text-purple-400">const</span> res = <span className="text-purple-400">await</span> authforge.<span className="text-amber-300">register</span>({"{"} name, username, email, password {"}"});{"\n"}
+                        {"  "}<span className="text-purple-400">return</span> res.data;{"\n"}
+                        {"}"}{"\n\n"}
+                        <span className="text-slate-500">// 3. FORGOT PASSWORD (Send reset link to user's email)</span>{"\n"}
+                        <span className="text-purple-400">async function</span> <span className="text-indigo-400">handleForgotPassword</span>(email) {"{\n"}
+                        {"  "}<span className="text-purple-400">const</span> res = <span className="text-purple-400">await</span> authforge.<span className="text-amber-300">forgotPassword</span>(email);{"\n"}
+                        {"  "}alert(res.message); <span className="text-slate-500">// "Password reset instructions sent"</span>{"\n"}
+                        {"}"}{"\n\n"}
+                        <span className="text-slate-500">// 4. RESET PASSWORD WITH TOKEN FROM EMAIL</span>{"\n"}
+                        <span className="text-purple-400">async function</span> <span className="text-indigo-400">handleResetPassword</span>(token, newPassword) {"{\n"}
+                        {"  "}<span className="text-purple-400">const</span> res = <span className="text-purple-400">await</span> authforge.<span className="text-amber-300">resetPassword</span>(token, newPassword);{"\n"}
+                        {"  "}alert(<span className="text-emerald-300">"Password updated! Please login."</span>);{"\n"}
+                        {"}"}
+                      </pre>
+                    )}
+
+                    {sdkSnippetTab === "middleware" && (
+                      <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">
+                        <span className="text-slate-500">// Node.js / Express Server: Protect your private API endpoints</span>{"\n"}
+                        <span className="text-purple-400">import</span> express <span className="text-purple-400">from</span> <span className="text-emerald-300">"express"</span>;{"\n"}
+                        <span className="text-purple-400">import</span> {"{"} AuthForge {"}"} <span className="text-purple-400">from</span> <span className="text-emerald-300">"authforge-sdk"</span>;{"\n\n"}
+                        <span className="text-purple-400">const</span> app = <span className="text-indigo-400">express</span>();{"\n"}
+                        <span className="text-purple-400">const</span> authforge = <span className="text-purple-400">new</span> <span className="text-indigo-400">AuthForge</span>({"{\n"}
+                        {"  "}connectionString: <span className="text-emerald-300">"{currentConnString}"</span>{"\n"}
+                        {"}"});{"\n\n"}
+                        <span className="text-slate-500">// Middleware automatically verifies Bearer JWT token & attaches req.user</span>{"\n"}
+                        app.<span className="text-amber-300">get</span>(<span className="text-emerald-300">"/api/protected-profile"</span>, authforge.<span className="text-amber-300">middleware</span>(), (req, res) =&gt; {"{\n"}
+                        {"  "}res.<span className="text-indigo-300">json</span>({"{\n"}
+                        {"    "}message: <span className="text-emerald-300">"Access granted!"</span>,{"\n"}
+                        {"    "}user: req.user <span className="text-slate-500">// Authenticated user object</span>{"\n"}
+                        {"  }"});{"\n"}
+                        {"}"});
+                      </pre>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -514,40 +764,232 @@ export default function DeveloperPortal() {
 
           {/* TAB 2: SECURITY & AUDIT LOGS */}
           {activePortalTab === "audit" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-purple-400" /> Security Audit Log Stream
-                </h3>
+            <div className="space-y-5">
+              {/* Header & Controls */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-800 pb-3 gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-purple-400 animate-pulse" /> Security Audit Log Stream
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Real-time event trail capturing logins, registration, password resets, SDK token verifications, and key activities.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Project Selector Filter */}
+                  <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                    <Key className="w-3.5 h-3.5 text-indigo-400" />
+                    <select
+                      value={auditProjectFilter}
+                      onChange={(e) => setAuditProjectFilter(e.target.value)}
+                      className="bg-transparent text-slate-200 focus:outline-none cursor-pointer text-xs"
+                    >
+                      <option value="ALL" className="bg-slate-900 text-slate-200">All Project Keys</option>
+                      {projects.map((p) => (
+                        <option key={p.projectId} value={p.projectId} className="bg-slate-900 text-slate-200">
+                          {p.name} ({p.projectId.substring(0, 10)}...)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={() => fetchAuditLogs(undefined, auditProjectFilter === "ALL" ? "" : auditProjectFilter)}
+                    disabled={isLoadingAuditLogs}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition-all flex items-center gap-1.5"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAuditLogs ? "animate-spin" : ""}`} /> Refresh
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Color Category Summary Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <button
-                  onClick={() => fetchAuditLogs()}
-                  disabled={isLoadingAuditLogs}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  onClick={() => setAuditStatusFilter("ALL")}
+                  className={`p-2.5 rounded-xl border text-left transition-all ${
+                    auditStatusFilter === "ALL"
+                      ? "bg-indigo-600/20 border-indigo-500 text-white shadow-md shadow-indigo-600/10"
+                      : "bg-slate-950/80 border-slate-800 text-slate-400 hover:border-slate-700"
+                  }`}
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAuditLogs ? "animate-spin" : ""}`} /> Refresh
+                  <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">All Events</div>
+                  <div className="text-lg font-bold text-white mt-0.5">{auditLogs.length}</div>
+                </button>
+
+                <button
+                  onClick={() => setAuditStatusFilter("GREEN")}
+                  className={`p-2.5 rounded-xl border text-left transition-all ${
+                    auditStatusFilter === "GREEN"
+                      ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-md shadow-emerald-500/10"
+                      : "bg-slate-950/80 border-slate-800 text-slate-400 hover:border-emerald-500/40"
+                  }`}
+                >
+                  <div className="text-[11px] font-medium text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+                    Green (Success)
+                  </div>
+                  <div className="text-lg font-bold text-emerald-400 mt-0.5">{greenLogsCount}</div>
+                </button>
+
+                <button
+                  onClick={() => setAuditStatusFilter("RED")}
+                  className={`p-2.5 rounded-xl border text-left transition-all ${
+                    auditStatusFilter === "RED"
+                      ? "bg-rose-500/20 border-rose-500 text-rose-300 shadow-md shadow-rose-500/10"
+                      : "bg-slate-950/80 border-slate-800 text-slate-400 hover:border-rose-500/40"
+                  }`}
+                >
+                  <div className="text-[11px] font-medium text-rose-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50"></span>
+                    Red (Failed / Alert)
+                  </div>
+                  <div className="text-lg font-bold text-rose-400 mt-0.5">{redLogsCount}</div>
+                </button>
+
+                <button
+                  onClick={() => setAuditStatusFilter("YELLOW")}
+                  className={`p-2.5 rounded-xl border text-left transition-all ${
+                    auditStatusFilter === "YELLOW"
+                      ? "bg-amber-500/20 border-amber-500 text-amber-300 shadow-md shadow-amber-500/10"
+                      : "bg-slate-950/80 border-slate-800 text-slate-400 hover:border-amber-500/40"
+                  }`}
+                >
+                  <div className="text-[11px] font-medium text-amber-300 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+                    Yellow (Attempt)
+                  </div>
+                  <div className="text-lg font-bold text-amber-300 mt-0.5">{yellowLogsCount}</div>
                 </button>
               </div>
 
-              {auditLogs.length === 0 ? (
-                <div className="p-8 text-center bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-400">
-                  No security audit events recorded yet. Perform a login, key creation, or token refresh to see events here.
+              {/* Audit Log Stream List */}
+              {filteredLogs.length === 0 ? (
+                <div className="p-10 text-center bg-slate-950 rounded-2xl border border-slate-800 text-xs text-slate-400 space-y-2">
+                  <ShieldAlert className="w-8 h-8 text-slate-600 mx-auto" />
+                  <p className="font-semibold text-slate-300 text-sm">No security audit events found matching filters.</p>
+                  <p className="text-slate-500">
+                    Try changing status filters or perform a user login, password reset, or token verification.
+                  </p>
                 </div>
               ) : (
-                <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80">
-                  {auditLogs.map((log: any, idx: number) => (
-                    <div key={log._id || idx} className="p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center space-x-3">
-                        <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
-                        <div>
-                          <span className="font-semibold text-slate-200 uppercase tracking-wide text-[11px]">{log.action}</span>
-                          <span className="ml-2 text-[11px] text-slate-400">{log.ipAddress || log.ip || "127.0.0.1"}</span>
+                <div className="space-y-3">
+                  {filteredLogs.map((log: any, idx: number) => {
+                    const info = getAuditLogCategory(log.action);
+                    const IconComponent = info.icon;
+                    const isExpanded = expandedLogId === (log._id || String(idx));
+                    const logProjectId = log.details?.projectId || "default";
+
+                    return (
+                      <div
+                        key={log._id || idx}
+                        className={`bg-slate-950/90 rounded-2xl border transition-all overflow-hidden ${
+                          info.category === "GREEN"
+                            ? "border-emerald-500/20 hover:border-emerald-500/40"
+                            : info.category === "RED"
+                            ? "border-rose-500/20 hover:border-rose-500/40"
+                            : "border-amber-500/20 hover:border-amber-500/40"
+                        }`}
+                      >
+                        {/* Main Summary Row */}
+                        <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                          <div className="flex items-start gap-3">
+                            {/* Color Dot & Icon */}
+                            <div className="mt-0.5 flex-shrink-0 flex items-center gap-2">
+                              <span className={`w-3 h-3 rounded-full ${info.dotCss}`}></span>
+                              <div className={`p-1.5 rounded-lg ${info.badgeCss}`}>
+                                <IconComponent className="w-4 h-4" />
+                              </div>
+                            </div>
+
+                            {/* Event Info */}
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {/* Color Status Sign Badge */}
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase ${info.badgeCss}`}>
+                                  {info.label}
+                                </span>
+
+                                {/* Action Code Pill */}
+                                <span className="px-2 py-0.5 rounded-md bg-slate-900 text-slate-300 font-mono text-[10px] border border-slate-800">
+                                  {log.action}
+                                </span>
+
+                                {/* Project Key Pill */}
+                                {logProjectId && (
+                                  <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 text-[10px] font-mono border border-indigo-500/20">
+                                    Key: {logProjectId}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Human-readable event description */}
+                              <h4 className="text-xs font-semibold text-white">
+                                {info.getTitle(log)}
+                              </h4>
+
+                              {/* User Email & IP details */}
+                              <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+                                {log.details?.email && (
+                                  <span className="flex items-center gap-1 text-slate-300">
+                                    <Users className="w-3 h-3 text-slate-400" />
+                                    {log.details.email}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1 text-slate-400 font-mono">
+                                  IP: {log.ipAddress || log.ip || "127.0.0.1"}
+                                </span>
+                                {log.userAgent && (
+                                  <span className="text-slate-500 text-[10px] truncate max-w-[200px]" title={log.userAgent}>
+                                    {log.userAgent}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right Column: Time & Details Toggle */}
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto border-t sm:border-t-0 border-slate-900 pt-2 sm:pt-0 gap-2 flex-shrink-0">
+                            <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-500" />
+                              {new Date(log.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                              <span className="text-slate-600">•</span>
+                              {new Date(log.createdAt || Date.now()).toLocaleDateString()}
+                            </div>
+
+                            <button
+                              onClick={() => setExpandedLogId(isExpanded ? null : (log._id || String(idx)))}
+                              className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <ChevronUp className="w-3.5 h-3.5" /> Hide Raw JSON
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-3.5 h-3.5" /> View Raw Details
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Expandable Raw Payload Drawer */}
+                        {isExpanded && (
+                          <div className="p-3 bg-slate-900/90 border-t border-slate-800/80">
+                            <div className="text-[10px] font-mono text-slate-400 mb-1 flex items-center justify-between">
+                              <span>Full Event Payload Object</span>
+                              <span>ID: {log._id || "N/A"}</span>
+                            </div>
+                            <pre className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-emerald-300 overflow-x-auto">
+                              {JSON.stringify(log, null, 2)}
+                            </pre>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-[11px] text-slate-400 font-mono">
-                        {new Date(log.createdAt || Date.now()).toLocaleString()}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

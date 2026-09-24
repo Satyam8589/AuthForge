@@ -192,7 +192,8 @@ export const auditLogController = async (req, res) => {
 
         const currentUserId = req.user?.userId;
         const queryLimit = req.query?.limit || limit;
-        const logs = await getUserAuditLogsService(currentUserId, queryLimit);
+        const projectId = req.query?.projectId;
+        const logs = await getUserAuditLogsService(currentUserId, queryLimit, projectId);
 
         return res.status(200).json({
             success: true,

@@ -6,6 +6,7 @@ import {
     deleteProjectService,
     getProjectUsersService
 } from "../services/project.service.js";
+import { logProjectCreated, logKeysRotated, logProjectDeleted } from "../utils/audit.js";
 
 const getBaseUrl = (req) => {
     const protocol = req.protocol || "http";
@@ -18,6 +19,8 @@ export const createProjectController = async (req, res) => {
         const ownerId = req.user.userId;
         const baseUrl = getBaseUrl(req);
         const project = await createProjectService(ownerId, req.body, baseUrl);
+
+        await logProjectCreated(ownerId, req, project);
 
         res.status(201).json({
             success: true,
@@ -79,6 +82,8 @@ export const regenerateApiSecretController = async (req, res) => {
         const baseUrl = getBaseUrl(req);
         const project = await regenerateApiSecretService(projectId, ownerId, baseUrl);
 
+        await logKeysRotated(ownerId, req, project);
+
         res.status(200).json({
             success: true,
             message: "API Secret regenerated successfully",
@@ -98,6 +103,8 @@ export const deleteProjectController = async (req, res) => {
         const ownerId = req.user.userId;
         const { projectId } = req.params;
         const result = await deleteProjectService(projectId, ownerId);
+
+        await logProjectDeleted(ownerId, req, projectId);
 
         res.status(200).json({
             success: true,

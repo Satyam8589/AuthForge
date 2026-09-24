@@ -161,12 +161,14 @@ export function useDashboardState() {
   };
 
   // Fetch security audit logs from backend
-  const fetchAuditLogs = async (token?: string) => {
+  const fetchAuditLogs = async (token?: string, projectId?: string) => {
     const activeToken = token || developerToken;
     if (!activeToken) return;
     setIsLoadingAuditLogs(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/auditLog`, {
+      const targetProjectId = projectId !== undefined ? projectId : (selectedProject?.projectId || "");
+      const queryParam = targetProjectId && targetProjectId !== "all" ? `?projectId=${encodeURIComponent(targetProjectId)}` : "";
+      const res = await fetch(`${API_BASE_URL}/api/auth/auditLog${queryParam}`, {
         headers: { "Authorization": `Bearer ${activeToken}` }
       });
       const data = await res.json();

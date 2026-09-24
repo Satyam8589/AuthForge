@@ -1,6 +1,7 @@
 import { verifyAccessToken } from "../utils/jwt.js";
 import { getUserByIdService } from "../services/user.service.js";
 import { registerUser, loginUser, registerUserByGoogle } from "../services/auth.service.js";
+import { logTokenVerified, logTokenInvalid } from "../utils/audit.js";
 
 export const verifyTokenController = async (req, res) => {
     try {
@@ -9,6 +10,7 @@ export const verifyTokenController = async (req, res) => {
         const token = tokenFromHeader || req.body?.token;
 
         if (!token) {
+            await logTokenInvalid(req, "Access token missing");
             return res.status(400).json({
                 success: false,
                 valid: false,
@@ -21,12 +23,15 @@ export const verifyTokenController = async (req, res) => {
 
         // Security check: ensure token belongs to the requesting AuthForge project
         if (user.projectId && user.projectId !== req.project.projectId && user.projectId !== 'default') {
+            await logTokenInvalid(req, "Token issued for a different AuthForge project");
             return res.status(403).json({
                 success: false,
                 valid: false,
                 message: "Security error: Token was issued for a different AuthForge project"
             });
         }
+
+        await logTokenVerified(user._id, req, user.email);
 
         res.status(200).json({
             success: true,
@@ -41,6 +46,7 @@ export const verifyTokenController = async (req, res) => {
             }
         });
     } catch (error) {
+        await logTokenInvalid(req, error.message || "Invalid or expired access token");
         res.status(401).json({
             success: false,
             valid: false,

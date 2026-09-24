@@ -6,10 +6,13 @@ import { sendPasswordResetEmail } from "./email.service.js";
 import { getClientInfo } from "../utils/clientInfo.js";
 import { 
     logRegistration, 
+    logLoginAttempt,
     logLoginSuccess, 
     logLoginFailed, 
     logLogout,
     logLogoutAllDevices,
+    logPasswordResetRequested,
+    logPasswordResetCompleted,
     logAuditEvent,
     getAuditLogs
 } from "../utils/audit.js";
@@ -95,6 +98,10 @@ export const loginUser = async (userData, req) => {
         let { email, password } = userData;
 
         email = email?.trim();
+
+        if (req && email) {
+            await logLoginAttempt(req, email);
+        }
 
         if (!email || !password) {
             const error = new Error("All fields are required");
@@ -182,8 +189,8 @@ export const auditLogService = async (userId, action, req, details = {}) => {
     return await logAuditEvent({ userId, action, req, details });
 };
 
-export const getUserAuditLogsService = async (userId, limit = 10) => {
-    return await getAuditLogs(userId, limit);
+export const getUserAuditLogsService = async (userId, limit = 50, projectId = null) => {
+    return await getAuditLogs(userId, limit, projectId);
 };
 
 export const logoutUser = async (userId, refreshToken, req) => {
@@ -538,12 +545,7 @@ export const requestPasswordReset = async (email, req) => {
 
         const emailResult = await sendPasswordResetEmail(user.email, resetToken, req);
 
-        await logAuditEvent({
-            userId: user._id,
-            action: 'PASSWORD_RESET',
-            req,
-            details: { email: user.email, stage: 'requested', emailMode: emailResult?.mode }
-        });
+        await logPasswordResetRequested(user._id, req, user.email);
 
         return {
             success: true,
@@ -594,12 +596,7 @@ export const resetPassword = async (token, newPassword, req) => {
         // Invalidate all active sessions for security after password change
         await RefreshToken.deleteMany({ userId: user._id });
 
-        await logAuditEvent({
-            userId: user._id,
-            action: 'PASSWORD_RESET',
-            req,
-            details: { email: user.email, stage: 'completed' }
-        });
+        await logPasswordResetCompleted(user._id, req, user.email);
 
         return {
             success: true,
