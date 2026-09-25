@@ -130,7 +130,7 @@ const resetRes = await authForge.resetPassword(resetToken, 'NewPassword123!');
 - `config`: Connection string (`authforge://...`) or object (`{ apiKey, apiSecret, projectId, host }`).
 
 ### `authForge.expressMiddleware()`
-- Returns standard Express middleware. Reads `Authorization: Bearer <token>`, verifies token, populates `req.user` & `req.authForge`, or returns `401 Unauthorized`.
+- Returns standard Express middleware. Reads `Authorization: Bearer <token>` headers or secure `HttpOnly` cookies (`req.cookies.token` or `req.cookies.accessToken`), verifies token, populates `req.user` & `req.authForge`, or returns `401 Unauthorized`.
 
 ### `authForge.verifyToken(token)`
 - `token`: JWT string.

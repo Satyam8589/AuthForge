@@ -618,6 +618,7 @@ export default function DeveloperPortal() {
 
                     {sdkSnippetTab === "quickstart" && (
                       <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">
+                        <span className="text-slate-500">// src/config/authforge.js</span>{"\n"}
                         <span className="text-slate-500">// Step 2: Initialize AuthForge Client with your pre-configured Connection String</span>{"\n"}
                         <span className="text-purple-400">import</span> {"{"} AuthForge {"}"} <span className="text-purple-400">from</span> <span className="text-emerald-300">"authforge-sdk"</span>;{"\n\n"}
                         <span className="text-purple-400">export const</span> <span className="text-amber-300">authforge</span> = <span className="text-purple-400">new</span> <span className="text-indigo-400">AuthForge</span>({"{\n"}
@@ -634,6 +635,7 @@ export default function DeveloperPortal() {
 
                     {sdkSnippetTab === "authFlow" && (
                       <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">
+                        <span className="text-slate-500">// src/controllers/auth.js</span>{"\n"}
                         <span className="text-purple-400">import</span> {"{"} authforge {"}"} <span className="text-purple-400">from</span> <span className="text-emerald-300">"./authforge"</span>;{"\n\n"}
                         <span className="text-slate-500">// 1. LOGIN WITH EMAIL & PASSWORD (Inside your custom Login form onSubmit)</span>{"\n"}
                         <span className="text-purple-400">async function</span> <span className="text-indigo-400">handleUserLogin</span>(email, password) {"{\n"}
@@ -664,18 +666,19 @@ export default function DeveloperPortal() {
 
                     {sdkSnippetTab === "middleware" && (
                       <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">
+                        <span className="text-slate-500">// src/middleware/middleware.js</span>{"\n"}
                         <span className="text-slate-500">// Node.js / Express Server: Protect your private API endpoints</span>{"\n"}
                         <span className="text-purple-400">import</span> express <span className="text-purple-400">from</span> <span className="text-emerald-300">"express"</span>;{"\n"}
-                        <span className="text-purple-400">import</span> {"{"} AuthForge {"}"} <span className="text-purple-400">from</span> <span className="text-emerald-300">"authforge-sdk"</span>;{"\n\n"}
+                        <span className="text-purple-400">import</span> cookieParser <span className="text-purple-400">from</span> <span className="text-emerald-300">"cookie-parser"</span>;{"\n"}
+                        <span className="text-purple-400">import</span> {"{"} AuthForgeClient {"}"} <span className="text-purple-400">from</span> <span className="text-emerald-300">"authforge-sdk"</span>;{"\n\n"}
                         <span className="text-purple-400">const</span> app = <span className="text-indigo-400">express</span>();{"\n"}
-                        <span className="text-purple-400">const</span> authforge = <span className="text-purple-400">new</span> <span className="text-indigo-400">AuthForge</span>({"{\n"}
-                        {"  "}connectionString: <span className="text-emerald-300">"{currentConnString}"</span>{"\n"}
-                        {"}"});{"\n\n"}
-                        <span className="text-slate-500">// Middleware automatically verifies Bearer JWT token & attaches req.user</span>{"\n"}
-                        app.<span className="text-amber-300">get</span>(<span className="text-emerald-300">"/api/protected-profile"</span>, authforge.<span className="text-amber-300">middleware</span>(), (req, res) =&gt; {"{\n"}
+                        app.<span className="text-amber-300">use</span>(<span className="text-indigo-400">cookieParser</span>());{"\n\n"}
+                        <span className="text-purple-400">const</span> authforge = <span className="text-purple-400">new</span> <span className="text-indigo-400">AuthForgeClient</span>(<span className="text-emerald-300">"{currentConnString}"</span>);{"\n\n"}
+                        <span className="text-slate-500">// Middleware automatically checks Bearer JWT header OR HttpOnly cookies & attaches req.user</span>{"\n"}
+                        app.<span className="text-amber-300">get</span>(<span className="text-emerald-300">"/api/protected-profile"</span>, authforge.<span className="text-amber-300">expressMiddleware</span>(), (req, res) =&gt; {"{\n"}
                         {"  "}res.<span className="text-indigo-300">json</span>({"{\n"}
                         {"    "}message: <span className="text-emerald-300">"Access granted!"</span>,{"\n"}
-                        {"    "}user: req.user <span className="text-slate-500">// Authenticated user object</span>{"\n"}
+                        {"    "}user: req.user <span className="text-slate-500">// Authenticated user payload</span>{"\n"}
                         {"  }"});{"\n"}
                         {"}"});
                       </pre>

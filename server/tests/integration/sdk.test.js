@@ -8,7 +8,7 @@ import sdkRoutes from "../../routes/sdk.route.js";
 import authRoutes from "../../routes/auth.route.js";
 import User from "../../models/User.model.js";
 import Project from "../../models/Project.model.js";
-import { AuthForgeClient } from "../../sdk/authforge-sdk.js";
+import { AuthForgeClient } from "../../sdk/index.js";
 import { generateAccessToken } from "../../utils/jwt.js";
 
 let mongoServer;

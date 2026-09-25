@@ -109,14 +109,21 @@ export class AuthForgeClient {
     expressMiddleware() {
         return async (req, res, next) => {
             const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            let token = null;
+
+            if (authHeader && authHeader.startsWith("Bearer ")) {
+                token = authHeader.split(" ")[1];
+            } else if (req.cookies && (req.cookies.token || req.cookies.accessToken)) {
+                token = req.cookies.token || req.cookies.accessToken;
+            }
+
+            if (!token) {
                 return res.status(401).json({
                     success: false,
                     message: "Authorization token missing or malformed"
                 });
             }
 
-            const token = authHeader.split(" ")[1];
             const result = await this.verifyToken(token);
 
             if (!result.valid) {

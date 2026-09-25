@@ -1,7 +1,10 @@
 import axios from "axios";
 
 export class AuthForgeClient {
-    
+    /**
+     * Initialize AuthForge Client with a connection string or config object
+     * @param {string | { apiKey: string, apiSecret: string, projectId: string, host?: string }} config 
+     */
     constructor(config) {
         if (typeof config === "string") {
             this.config = AuthForgeClient.parseConnectionString(config);
@@ -19,8 +22,16 @@ export class AuthForgeClient {
         if (!this.config.host) {
             throw new Error("AuthForge host URL is required.");
         }
+
+        // Clean trailing slash from host URL if present
+        if (this.config.host.endsWith("/")) {
+            this.config.host = this.config.host.slice(0, -1);
+        }
     }
 
+    /**
+     * Parses connection string format: authforge://apiKey:apiSecret@projectId?host=http://localhost:2000
+     */
     static parseConnectionString(connStr) {
         if (!connStr || !connStr.startsWith("authforge://")) {
             throw new Error("Invalid AuthForge connection string scheme. Expected format starting with 'authforge://'");
@@ -70,7 +81,7 @@ export class AuthForgeClient {
     /**
      * Verifies a user JWT access token against the AuthForge server.
      * @param {string} token 
-     * @returns {Promise<object>} { valid, user, tokenPayload }
+     * @returns {Promise<object>} { valid: boolean, data?: object, message?: string }
      */
     async verifyToken(token) {
         if (!token) throw new Error("Token is required for verification");
@@ -93,19 +104,26 @@ export class AuthForgeClient {
 
     /**
      * Express Middleware for external applications to authenticate incoming requests.
-     * Attach req.user and req.authForge.
+     * Attaches req.user and req.authForge.
      */
     expressMiddleware() {
         return async (req, res, next) => {
             const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            let token = null;
+
+            if (authHeader && authHeader.startsWith("Bearer ")) {
+                token = authHeader.split(" ")[1];
+            } else if (req.cookies && (req.cookies.token || req.cookies.accessToken)) {
+                token = req.cookies.token || req.cookies.accessToken;
+            }
+
+            if (!token) {
                 return res.status(401).json({
                     success: false,
                     message: "Authorization token missing or malformed"
                 });
             }
 
-            const token = authHeader.split(" ")[1];
             const result = await this.verifyToken(token);
 
             if (!result.valid) {
@@ -160,7 +178,35 @@ export class AuthForgeClient {
         );
         return response.data;
     }
+
+    /**
+     * Triggers a password reset email for a user under this project.
+     * @param {string} email 
+     */
+    async forgotPassword(email) {
+        if (!email) throw new Error("Email is required for password reset");
+        const response = await axios.post(
+            `${this.config.host}/api/auth/forgot-password`,
+            { email },
+            { headers: this.getHeaders() }
+        );
+        return response.data;
+    }
+
+    /**
+     * Resets a user password using a valid reset token.
+     * @param {string} token 
+     * @param {string} newPassword 
+     */
+    async resetPassword(token, newPassword) {
+        if (!token || !newPassword) throw new Error("Reset token and new password are required");
+        const response = await axios.post(
+            `${this.config.host}/api/auth/reset-password`,
+            { token, newPassword },
+            { headers: this.getHeaders() }
+        );
+        return response.data;
+    }
 }
 
 export default AuthForgeClient;
-

@@ -50,19 +50,65 @@ export function useDashboardState() {
   const [apiResponse, setApiResponse] = useState<string | null>(null);
   const [isTestingApi, setIsTestingApi] = useState(false);
 
+  // Helper to check if JWT token is expired
+  const isTokenExpired = (token: string): boolean => {
+    try {
+      const base64Url = token.split(".")[1];
+      if (!base64Url) return true;
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+      const decoded = JSON.parse(jsonPayload);
+      if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+        return true;
+      }
+      return false;
+    } catch {
+      return true;
+    }
+  };
+
+  // Helper to handle 401 Unauthorized API responses
+  const checkUnauthorized = (res: Response, data?: any) => {
+    if (res.status === 401 || data?.message?.toLowerCase().includes("jwt") || data?.message?.toLowerCase().includes("expired")) {
+      handleLogout();
+      setDevAuthMsg({
+        type: "error",
+        text: "Your session has expired. Please sign in again."
+      });
+      return true;
+    }
+    return false;
+  };
+
   // Check saved session in localStorage & handle Google OAuth listener
   useEffect(() => {
     const savedToken = localStorage.getItem("af_dev_token");
     const savedUser = localStorage.getItem("af_dev_user");
     if (savedToken && savedUser) {
-      try {
-        setDeveloperToken(savedToken);
-        setDeveloperUser(JSON.parse(savedUser));
-        fetchUserProjects(savedToken);
-        fetchAuditLogs(savedToken);
-      } catch {
+      if (isTokenExpired(savedToken)) {
         localStorage.removeItem("af_dev_token");
         localStorage.removeItem("af_dev_user");
+        localStorage.removeItem("af_selected_project_id");
+        setDevAuthMsg({
+          type: "error",
+          text: "Session expired. Please sign in again."
+        });
+      } else {
+        try {
+          setDeveloperToken(savedToken);
+          setDeveloperUser(JSON.parse(savedUser));
+          fetchUserProjects(savedToken);
+          fetchAuditLogs(savedToken);
+        } catch {
+          localStorage.removeItem("af_dev_token");
+          localStorage.removeItem("af_dev_user");
+          localStorage.removeItem("af_selected_project_id");
+        }
       }
     }
 
@@ -120,6 +166,8 @@ export function useDashboardState() {
         }
       });
       const data = await res.json();
+      if (checkUnauthorized(res, data)) return;
+
       if (res.ok && data.success && Array.isArray(data.data)) {
         if (data.data.length > 0) {
           setProjects(data.data);
@@ -149,6 +197,8 @@ export function useDashboardState() {
         body: JSON.stringify({ name: "Default App" })
       });
       const data = await res.json();
+      if (checkUnauthorized(res, data)) return;
+
       if (res.ok && data.success && data.data) {
         setProjects([data.data]);
         setSelectedProject(data.data);
@@ -172,6 +222,8 @@ export function useDashboardState() {
         headers: { "Authorization": `Bearer ${activeToken}` }
       });
       const data = await res.json();
+      if (checkUnauthorized(res, data)) return;
+
       if (res.ok && data.success && Array.isArray(data.data)) {
         setAuditLogs(data.data);
       }
@@ -194,6 +246,8 @@ export function useDashboardState() {
         headers: { "Authorization": `Bearer ${activeToken}` }
       });
       const data = await res.json();
+      if (checkUnauthorized(res, data)) return;
+
       if (res.ok && data.success && data.data) {
         setProjectUsers(data.data.users || []);
         setTotalProjectUsers(data.data.totalUsers || 0);
@@ -378,8 +432,12 @@ export function useDashboardState() {
     setDeveloperUser(null);
     setProjects([]);
     setSelectedProject(null);
+    setProjectUsers([]);
+    setTotalProjectUsers(0);
+    setAuditLogs([]);
     localStorage.removeItem("af_dev_token");
     localStorage.removeItem("af_dev_user");
+    localStorage.removeItem("af_selected_project_id");
   };
 
   // Handle Logout All Devices

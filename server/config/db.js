@@ -15,13 +15,11 @@ const syncUserIndexes = async () => {
         for (const idx of indexes) {
             if (idx.name === "email_1" || idx.name === "username_1" || idx.name === "googleId_1") {
                 await collection.dropIndex(idx.name).catch(() => {});
-                console.log(`Dropped legacy single-field MongoDB index: ${idx.name}`);
             }
         }
 
         // Sync Mongoose schema compound indexes
         await User.syncIndexes().catch(() => {});
-        console.log("Synchronized project-scoped compound user indexes.");
     } catch (err) {
         console.warn("Index sync warning:", err.message);
     }
